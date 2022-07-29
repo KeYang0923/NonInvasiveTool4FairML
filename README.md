@@ -3,7 +3,6 @@
 ## Initialize a virtual environment and install the libraries
 
 ```bash
-cd pipeline/
 conda create -n 'venv' python=3.7.0
 conda activate venv
 pip install -r requirements.txt
