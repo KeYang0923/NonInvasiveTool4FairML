@@ -1,10 +1,10 @@
 # prepare data for model training, execute this zash inside the pipeline folder
-python DataProcessor_AIF # for benchmark datasets Adult income, German credit, and COMPAS
-python DataProcessor # for other real datasets Cardio diseases, Bank marketing, MEPS, Law School GPA, and Credit
+python DataProcessor_AIF.py # for benchmark datasets Adult income, German credit, and COMPAS
+python DataProcessor.py --data 'all' # for other real datasets Cardio diseases, Bank marketing, MEPS, Law School GPA, Credit, and UFRGS
 
 # running CAPUCHIN to repair data
 cd ../CAPUCHIN/
-python DataProcessor_CAP
+python DataProcessor_CAP.py
 
 cd ../pipeline/
 python ModelTrainer.py

@@ -3,6 +3,7 @@
 
 import warnings
 from sklearn import preprocessing
+import argparse
 
 import pandas as pd
 import numpy as np
@@ -103,17 +104,17 @@ class LawGPA(Dataset):
 
     def __init__(self, name=None):
         try:
-            import tempeh.configurations as tc
-            dataset = tc.datasets["lawschool_gpa"]()
-            X_train, X_test = dataset.get_X(format=pd.DataFrame)
-            y_train, y_test = dataset.get_y(format=pd.Series)
-            A_train, A_test = dataset.get_sensitive_features(name='race',
-                                                             format=pd.Series)
-            all_train = pd.concat([X_train, y_train, A_train], axis=1)
-            all_test = pd.concat([X_test, y_test, A_test], axis=1)
-
-            raw_df = pd.concat([all_train, all_test], axis=0)
-
+            # import tempeh.configurations as tc
+            # dataset = tc.datasets["lawschool_gpa"]()
+            # X_train, X_test = dataset.get_X(format=pd.DataFrame)
+            # y_train, y_test = dataset.get_y(format=pd.Series)
+            # A_train, A_test = dataset.get_sensitive_features(name='race',
+            #                                                  format=pd.Series)
+            # all_train = pd.concat([X_train, y_train, A_train], axis=1)
+            # all_test = pd.concat([X_test, y_test, A_test], axis=1)
+            #
+            # raw_df = pd.concat([all_train, all_test], axis=0)
+            raw_df = pd.read_csv('../data/lawgpa/data.csv') # the data is derived from running the above code
         except IOError as err:
             print("IOError: {}".format(err))
 
@@ -131,6 +132,34 @@ class LawGPA(Dataset):
             super().__init__(raw_df, name, numerical_columns, label_col, posi_label, cluster_col, cluster_col_mapping)
         else:
             super().__init__(raw_df, 'lawgpa', numerical_columns, label_col, posi_label, cluster_col, cluster_col_mapping)
+
+class UFRGS(Dataset):
+    # this dataset is from Harvard Dataverse. See details at https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/O35FW8
+    # It consists of entrance exam scores of students applying to a university in Brazil (Federal University of Rio Grande do Sul), along with the students' GPAs during the first three semesters at university.
+
+    def __init__(self, name=None):
+        try:
+            raw_df = pd.read_csv('../data/UFRGS/data.csv')
+
+        except IOError as err:
+            print("IOError: {}".format(err))
+
+        categorical_columns = None
+        numerical_columns = ['physics', 'biology', 'history', 'SecondLanguage', 'geography', 'literature',
+                             'PortugueseEssay', 'math', 'chemistry']
+
+        raw_df['GPA'] = raw_df['GPA'].apply(lambda x: int(x >= 3.0))
+        label_col = 'GPA' # whether GPA in the first three semesters is greater than 3.0
+
+        posi_label = None
+
+        cluster_col = 'gender'  # 0 denotes female and 1 denotes male.
+        cluster_col_mapping = None
+        if name is not None:
+            super().__init__(raw_df, name, numerical_columns, label_col, posi_label, cluster_col, cluster_col_mapping)
+        else:
+            super().__init__(raw_df, 'UFRGS', numerical_columns, label_col, posi_label, cluster_col, cluster_col_mapping)
+
 
 class GMCredit(Dataset):
     # this dataset is from Kaggle competition and for classification task of predicting the probability that somebody will experience financial distress in the next two years.
@@ -344,14 +373,45 @@ class BankFeatures(Dataset):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Evaluate models over erroneous test data")
+    parser.add_argument("--data", type=str,
+                        help="dataset to simulate all the error rates. Use 'all' for all the datasets. OR choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit] for different datasets.")
+
+    args = parser.parse_args()
+
+    datasets = ['cardio', 'bank', 'meps16', 'lawgpa', 'credit', 'UFRGS']
+
+
+    if args.data is None:
+        raise ValueError('The input "data" is requried. Use "all" for all the datasets. OR choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit, UFRGS] for different datasets.')
+
+    elif args.data == 'all':
+        datasets_objs = [Cardio('cardio_dense'), Cardio('cardio_features'),
+                        BankDense(), BankFeatures(),
+                        MEPS('meps16_dense'), MEPS('meps16_features'),
+                        LawGPA('lawgpa_dense'), LawGPA('lawgpa_features'),
+                        GMCredit('credit_dense'), GMCredit('credit_features'),
+                        UFRGS('UFRGS_dense'), UFRGS('UFRGS_features')]
+    else:
+        if args.data not in datasets:
+            raise ValueError(
+                'The input "data" is requried. Use "all" for all the datasets. OR choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit, UFRGS] for different datasets.')
+        else:
+            if args.data == 'bank':
+                datasets_objs = [BankDense(), BankFeatures()]
+            elif args.data == 'meps16':
+                raise ValueError(
+                    'To avoid the size limit of GitHub, we do not keep the raw data for MEPS. DO retreive the raw data by running the R script as in "../data/meps16/generate_data.R". Then, uncomment the code in line 407 of this script to run the preprocessing for MEPS dataset.')
+            else: # Uncomment the row for "meps16" when this script is used for MEPS dataset.
+                datasets_objs_mapping = {'cardio': [Cardio('cardio_dense'), Cardio('cardio_features')],
+                                         # 'meps16': [MEPS('meps16_dense'), MEPS('meps16_features')],
+                                         'lawgpa': [LawGPA('lawgpa_dense'), LawGPA('lawgpa_features')],
+                                         'credit': [GMCredit('credit_dense'), GMCredit('credit_features')],
+                                         'UFRGS': [UFRGS('UFRGS_dense'), UFRGS('UFRGS_features')]}
+                datasets_objs = datasets_objs_mapping[args.data]
+
     processed_file_path = '../data/processed/'
 
-    datasets_extra = [Cardio('cardio_dense'), Cardio('cardio_features'),
-                      BankDense(), BankFeatures(),
-                      MEPS('meps16_dense'), MEPS('meps16_features'),
-                      LawGPA('lawgpa_dense'), LawGPA('lawgpa_features'),
-                      GMCredit('credit_dense'), GMCredit('credit_features')]
-
-    for dataset in datasets_extra:
+    for dataset in datasets_objs:
         df = dataset.preprocess()
         df.to_csv(processed_file_path + dataset.name + '.csv', index=False)
