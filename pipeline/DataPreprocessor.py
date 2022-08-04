@@ -386,6 +386,8 @@ if __name__ == '__main__':
         raise ValueError('The input "data" is requried. Use "all" for all the datasets. OR choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit, UFRGS] for different datasets.')
 
     elif args.data == 'all':
+        print('To avoid the size limit of GitHub, we do not keep the raw data for MEPS. First retreive the raw data by running the R script as in "../data/meps16/generate_data.R".')
+
         datasets_objs = [Cardio('cardio_dense'), Cardio('cardio_features'),
                         BankDense(), BankFeatures(),
                         MEPS('meps16_dense'), MEPS('meps16_features'),
