@@ -8,4 +8,3 @@ joblib==0.13.2
 scikit_learn>=0.24.0
 jupyter
 seaborn
-shap
