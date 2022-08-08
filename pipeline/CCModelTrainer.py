@@ -105,10 +105,10 @@ def learn_cc_models(data_name, seed, y_col, sensi_col, name_mapping, cc_skiped_c
                     data_path='../data/processed/'):
     if data_name in ['german', 'lawgpa']:
         dense_n = 500
-    elif data_name in ['adult', 'compas', 'cardio', 'bank', 'meps16', 'credit'] :
+    elif data_name in ['adult', 'compas', 'cardio', 'bank', 'meps16', 'credit', 'UFRGS']:
         dense_n = 2000
     else:
-        raise ValueError('The input dataset is not supported!. Choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit]')
+        raise ValueError('The input dataset is not supported!. Choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit, UFRGS]')
 
     cur_dir = res_path + data_name + '/'
     cc_print_file = cur_dir + '-'.join(['train_CC', str(seed)])
@@ -162,6 +162,11 @@ if __name__ == '__main__':
 
     parser.add_argument("--run", type=str, default='parallel',
                         help="setting of 'parallel' for system evaluation or 'serial' execution for unit test.")
+    # parameters for running over smaller number of datasets and few number of executions
+    parser.add_argument("--set_n", type=int, default=9,
+                        help="number of datasets over which the script is running. Default is 9 for all the datasets.")
+    parser.add_argument("--exec_n", type=int, default=20,
+                        help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
     name_cols = {'adult': (['Female', 'Male'], ['<=50K', '>50K'], 'tophat'),
@@ -171,7 +176,8 @@ if __name__ == '__main__':
                  'bank': (['Married&Divorced', 'Single'], ['Declined', 'Approval'], 'tophat'),
                  'meps16': (['Not White', 'White'], ['Low utilization', 'High utilization'], 'tophat'),
                  'lawgpa': (['Black', 'White'], ['low', 'high'], 'gaussian'),
-                 'credit': (['Old', 'Young'], ['no', 'yes'], 'tophat')}
+                 'credit': (['Old', 'Young'], ['no', 'yes'], 'tophat'),
+                 'UFRGS': (['female', 'male'], ['lowGPA', 'highGPA'], 'gaussian')}
 
     # skip the categorical attributes and useless numerical ones in the input CC
     cc_skip_cols_mapping = {'adult': ['race'],
@@ -181,7 +187,8 @@ if __name__ == '__main__':
                     'bank': ['X' + str(i) for i in range(5, 16)],
                     'meps16': ['X' + str(i) for i in range(5, 138)],
                     'lawgpa': [],
-                    'credit': []
+                    'credit': [],
+                    'UFRGS': []
                     }
     dense_skip_cols_mapping = {'adult': ['race'],
                     'german': ['sex'],
@@ -190,14 +197,43 @@ if __name__ == '__main__':
                     'bank': ['X' + str(i) for i in range(5, 16)],
                     'meps16': ['X' + str(i) for i in range(5, 138)],
                     'lawgpa': [],
-                    'credit': []
+                    'credit': [],
+                    'UFRGS': []
                     }
 
-    datasets = ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit']
-    y_cols = ['Income Binary', 'credit', 'two_year_recid'] + ['Y' for i in range(5)]
-    sensi_cols = ['sex', 'age', 'race'] + ['C0' for i in range(5)]
+    datasets = ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit', 'UFRGS']
+    y_cols = ['Income Binary', 'credit', 'two_year_recid'] + ['Y' for i in range(6)]
+    sensi_cols = ['sex', 'age', 'race'] + ['C0' for i in range(6)]
 
-    seeds = [50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe, 0xdeadbeef, 0xbeefcafe]
+    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe, 0xdeadbeef, 0xbeefcafe]
+
+
+    if args.set_n is None:
+        raise ValueError(
+            'The input "set_n" is requried. Use "--set_n 1" for running over a single dataset.')
+    elif type(args.set_n) == str:
+        raise ValueError(
+            'The input "set_n" requires integer. Use "--set_n 1" for running over a single dataset.')
+    else:
+        n_datasets = int(args.set_n)
+        if n_datasets == -1:
+            datasets = datasets[n_datasets:]
+            y_cols = y_cols[n_datasets:]
+            sensi_cols = sensi_cols[n_datasets:]
+        else:
+            datasets = datasets[:n_datasets]
+            y_cols = y_cols[:n_datasets]
+            sensi_cols = sensi_cols[:n_datasets]
+
+    if args.exec_n is None:
+        raise ValueError(
+            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
+    elif type(args.exec_n) == str:
+        raise ValueError(
+            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
+    else:
+        n_exec = int(args.exec_n)
+        seeds = seeds[:n_exec]
 
     res_path = '../intermediate/models/'
 

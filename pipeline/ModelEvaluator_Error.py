@@ -66,7 +66,7 @@ def eval_erroneous_data(data_name, seed, y_col, sensi_col, eval_setting, fair_se
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Evaluate models over erroneous test data")
     parser.add_argument("--data", type=str,
-                        help="dataset to simulate all the error rates. Use 'all' for all the datasets. OR choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit] for different datasets.")
+                        help="dataset to simulate all the error rates. Use 'all' for all the datasets. OR choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit, UFRGS] for different datasets.")
     parser.add_argument("--model", type=str,
                         help="setting of evaluation for single or group models, if 'group' run for all the models in MultiCC. Otherwise, only for the single model in SingleCC.")
 
@@ -75,14 +75,19 @@ if __name__ == '__main__':
 
     parser.add_argument("--run", type=str, default='parallel',
                         help="setting of 'parallel' for system evaluation or 'serial' execution for unit test.")
+    # parameters for running few number of executions and few error rates
+    parser.add_argument("--exec_n", type=int, default=20,
+                        help="number of executions with different random seeds. Default is 20.")
+    parser.add_argument("--exec_k", type=int, default=30,
+                        help="number of error rates. Default is 30.")
     args = parser.parse_args()
 
-    datasets = ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit']
+    datasets = ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit', 'UFRGS']
     y_cols_mapping = {'adult': 'Income Binary', 'german': 'credit', 'compas': 'two_year_recid',
-                      'cardio': 'Y', 'bank': 'Y', 'meps16': 'Y', 'lawgpa': 'Y', 'credit': 'Y'}
+                      'cardio': 'Y', 'bank': 'Y', 'meps16': 'Y', 'lawgpa': 'Y', 'credit': 'Y', 'UFRGS': 'Y'}
 
     sensi_cols_mapping = {'adult': 'sex', 'german': 'age', 'compas': 'race',
-                          'cardio': 'C0', 'bank': 'C0', 'meps16': 'C0', 'lawgpa': 'C0', 'credit': 'C0'}
+                          'cardio': 'C0', 'bank': 'C0', 'meps16': 'C0', 'lawgpa': 'C0', 'credit': 'C0', 'UFRGS': 'C0'}
 
     seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe,
              0xdeadbeef, 0xbeefcafe]
@@ -93,15 +98,14 @@ if __name__ == '__main__':
         raise ValueError('The input "data" is requried. Use "all" for all the datasets. OR choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit] for different datasets.')
 
     elif args.data == 'all':
-        datasets = ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit']
-        y_cols = ['Income Binary', 'credit', 'two_year_recid'] + ['Y' for i in range(5)]
-        sensi_cols = ['sex', 'age', 'race'] + ['C0' for i in range(5)]
-
+        datasets = ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit', 'UFRGS']
+        y_cols = ['Income Binary', 'credit', 'two_year_recid'] + ['Y' for i in range(6)]
+        sensi_cols = ['sex', 'age', 'race'] + ['C0' for i in range(6)]
 
     else:
         if args.data not in datasets:
             raise ValueError(
-                'The input "data" is not supported. Choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit] for different datasets.')
+                'The input "data" is not supported. Choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit, UFRGS] for different datasets.')
         else:
             datasets = [args.data]
             y_cols = [y_cols_mapping[args.data]]
@@ -114,21 +118,42 @@ if __name__ == '__main__':
         raise ValueError(
             'The input "model" is not supported. Choose from [single, group].')
 
+
     if args.setting is None:
         raise ValueError('The input "setting" is requried. Use "all" for multiple error rates. OR "error"+0.1 for the example of 10% errors simulated in the test set.')
 
     elif 'error' not in args.setting:
+        errors_k = [x / 100 for x in range(1, 30)]
         if args.setting != 'all':
             raise ValueError(
                 'The input "setting" is not supported.  Use "all" for multiple error rates. OR "error"+0.1 for the example of 10% errors simulated in the test set.')
         else:
-            errors_k = [x / 100 for x in range(1, 30)]
-    else: # erroneous case
+            if args.exec_k is None:
+                raise ValueError(
+                    'The input "exec_k" is requried. Use "--exec_k 1" for a single error rate.')
+            elif type(args.exec_k) == str:
+                raise ValueError(
+                    'The input "exec_k" requires integer. Use "--exec_k 1" for a single error rate.')
+            else:
+                k_exec = int(args.exec_k)
+                errors_k = errors_k[:k_exec]
+    else: # erroneous case under single error rate
         if args.setting not in ['error0.2', 'error0.15', ' error0.1', 'error0.05', 'error0.01']:
             raise ValueError(
                 'The input "setting" is not supported. Use "all" for multiple error rates. OR choose from [error0.1, error0.15, error0.2, error0.01, error0.05]. OR run "ErrorDataSimulator.py" for new desired rates.')
         else:
             errors_k = [float(args.setting.replace('error', ''))]
+
+
+    if args.exec_n is None:
+        raise ValueError(
+            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
+    elif type(args.exec_n) == str:
+        raise ValueError(
+            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
+    else:
+        n_exec = int(args.exec_n)
+        seeds = seeds[:n_exec]
 
 
     if args.run == 'parallel':

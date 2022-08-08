@@ -37,10 +37,10 @@ def retrain_models_by_faircc(data_name, seed, y_col, sensi_col, fair_setting, we
     np.random.seed(seed)
     if data_name in ['adult', 'german', 'compas']:
         learner = AIFLogisticRegression()
-    elif data_name in ['cardio', 'bank', 'lawgpa', 'meps16', 'credit']:
+    elif data_name in ['cardio', 'bank', 'lawgpa', 'meps16', 'credit', 'UFRGS']:
         learner = SKLogisticRegression()
     else:
-        raise ValueError('The input dataset is not supported!. Choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit]')
+        raise ValueError('The input dataset is not supported!. Choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit, UFRGS]')
 
     # initiate weight base
     if 'KAM-CAL' in fair_setting: # set the weights using KAM-CAL
@@ -145,6 +145,11 @@ if __name__ == '__main__':
 
     parser.add_argument("--run", type=str, default='parallel',
                         help="setting of 'parallel' for system evaluation or 'serial' execution for unit test.")
+    # parameters for running over smaller number of datasets and few number of executions
+    parser.add_argument("--set_n", type=int, default=9,
+                        help="number of datasets over which the script is running. Default is 9 for all the datasets.")
+    parser.add_argument("--exec_n", type=int, default=20,
+                        help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
     # optimized intervention degree in SingleCC
@@ -155,12 +160,13 @@ if __name__ == '__main__':
                       'bank': [0.3, 0.1],
                       'meps16': [1.5, 0.5],
                       'lawgpa': [1.5, 0.5],
-                      'credit': [1.95, 0.95]
+                      'credit': [1.95, 0.95],
+                      'UFRGS': [0.3, 0.1]
                       }
 
-    datasets = ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit']
-    y_cols = ['Income Binary', 'credit', 'two_year_recid'] + ['Y' for i in range(5)]
-    sensi_cols = ['sex', 'age', 'race'] + ['C0' for i in range(5)]
+    datasets = ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit', 'UFRGS']
+    y_cols = ['Income Binary', 'credit', 'two_year_recid'] + ['Y' for i in range(6)]
+    sensi_cols = ['sex', 'age', 'race'] + ['C0' for i in range(6)]
 
     seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe, 0xdeadbeef, 0xbeefcafe]
 
@@ -171,6 +177,34 @@ if __name__ == '__main__':
     if args.setting not in ['SingleCC', 'KAM-CAL', 'SingleCC+KAM-CAL']:
         raise ValueError(
             'The input "setting" is not supported. Choose from [SingleCC, KAM-CAL, SingleCC+KAM-CAL] that represent SingleCC, KAM-CAL, and SingleCC+KAM-CAL, respectively.')
+
+    if args.set_n is None:
+        raise ValueError(
+            'The input "set_n" is requried. Use "--set_n 1" for running over a single dataset.')
+    elif type(args.set_n) == str:
+        raise ValueError(
+            'The input "set_n" requires integer. Use "--set_n 1" for running over a single dataset.')
+    else:
+        n_datasets = int(args.set_n)
+        if n_datasets == -1:
+            datasets = datasets[n_datasets:]
+            y_cols = y_cols[n_datasets:]
+            sensi_cols = sensi_cols[n_datasets:]
+        else:
+            datasets = datasets[:n_datasets]
+            y_cols = y_cols[:n_datasets]
+            sensi_cols = sensi_cols[:n_datasets]
+
+    if args.exec_n is None:
+        raise ValueError(
+            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
+    elif type(args.exec_n) == str:
+        raise ValueError(
+            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
+    else:
+        n_exec = int(args.exec_n)
+        seeds = seeds[:n_exec]
+
 
     res_path = '../intermediate/models/'
 

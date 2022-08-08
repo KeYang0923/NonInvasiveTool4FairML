@@ -21,10 +21,10 @@ def XGB_trainer(data_name, y_col, sensi_col, seed, fair_setting,
 
     output_file = fair_setting + '_xgb'
 
-    if data_name in ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit']:
+    if data_name in ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit', 'UFRGS']:
         learner = XgBoost()
     else:
-        raise ValueError('The input dataset is not supported!. Choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit]')
+        raise ValueError('The input dataset is not supported!. Choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit, UFRGS]')
 
 
     input_df = pd.read_csv(data_path + data_name + '_dense.csv')
@@ -64,12 +64,16 @@ if __name__ == '__main__':
                         help="setting of 'parallel' for system evaluation or 'serial' execution for unit test.")
     parser.add_argument("--setting", type=str,
                         help="method of fairness interventions. Choose from [SingleCC, KAM-CAL, SingleCC+KAM-CAL] that represent SingleCC, KAM-CAL, and SingleCC+KAM-CAL, respectively.")
-
+    # parameters for running over smaller number of datasets and few number of executions
+    parser.add_argument("--set_n", type=int, default=9,
+                        help="number of datasets over which the script is running. Default is 9 for all the datasets.")
+    parser.add_argument("--exec_n", type=int, default=20,
+                        help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
-    datasets = ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit']
-    y_cols = ['Income Binary', 'credit', 'two_year_recid'] + ['Y' for i in range(5)]
-    sensi_cols = ['sex', 'age', 'race'] + ['C0' for i in range(5)]
+    datasets = ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit', 'UFRGS']
+    y_cols = ['Income Binary', 'credit', 'two_year_recid'] + ['Y' for i in range(6)]
+    sensi_cols = ['sex', 'age', 'race'] + ['C0' for i in range(6)]
 
     seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead,
                                                                 0xdeadcafe, 0xdeadbeef, 0xbeefcafe]
@@ -81,6 +85,34 @@ if __name__ == '__main__':
     if args.setting not in ['SingleCC', 'KAM-CAL', 'SingleCC+KAM-CAL']:
         raise ValueError(
             'The input "setting" is not supported. Choose from [SingleCC, KAM-CAL, SingleCC+KAM-CAL] that represent SingleCC, KAM-CAL, and SingleCC+KAM-CAL, respectively.')
+
+    if args.set_n is None:
+        raise ValueError(
+            'The input "set_n" is requried. Use "--set_n 1" for running over a single dataset.')
+    elif type(args.set_n) == str:
+        raise ValueError(
+            'The input "set_n" requires integer. Use "--set_n 1" for running over a single dataset.')
+    else:
+        n_datasets = int(args.set_n)
+        if n_datasets == -1:
+            datasets = datasets[n_datasets:]
+            y_cols = y_cols[n_datasets:]
+            sensi_cols = sensi_cols[n_datasets:]
+        else:
+            datasets = datasets[:n_datasets]
+            y_cols = y_cols[:n_datasets]
+            sensi_cols = sensi_cols[:n_datasets]
+
+    if args.exec_n is None:
+        raise ValueError(
+            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
+    elif type(args.exec_n) == str:
+        raise ValueError(
+            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
+    else:
+        n_exec = int(args.exec_n)
+        seeds = seeds[:n_exec]
+
 
     if args.run == 'parallel':
         tasks = []

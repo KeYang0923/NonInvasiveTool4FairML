@@ -6,6 +6,7 @@ python DataProcessor.py --data 'all' # for other real datasets Cardio diseases, 
 cd ../CAPUCHIN/
 python DataProcessor_CAP.py
 
+# the below scripts can run systematically
 cd ../pipeline/
 python ModelTrainer.py
 python ModelThresholdOptimizer.py --model 'single' --setting 'SingleCC'

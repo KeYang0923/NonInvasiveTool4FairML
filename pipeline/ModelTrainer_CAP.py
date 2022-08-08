@@ -58,19 +58,18 @@ class XgBoost(Learner):
 
 def XGB_trainer(data_name, y_col, sensi_col, seed, num_atts, repair_path='../intermediate/cap_res/',
                   res_path='../intermediate/models/',
-                  verbose=False, data_path='../data/processed/'):
+                  verbose=True, data_path='../data/processed/'):
 
     cur_dir = res_path + data_name + '/'
     make_folder(cur_dir)
 
     train_df = pd.read_csv(repair_path + data_name + '/train__repMF_'+str(seed)+'.csv')
-
-    if data_name in ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit']:
+    if data_name in ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit', 'UFRGS']:
         learner = XgBoost()
     else:
-        raise ValueError('The input dataset is not supported!. Choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit]')
+        raise ValueError('The input dataset is not supported!. Choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit, UFRGS]')
 
-    if data_name in ['lawgpa', 'credit']:
+    if data_name in ['lawgpa', 'credit', 'UFRGS']:
         test_df = pd.read_csv(repair_path +data_name+'/test_cat'+str(seed)+'.csv')
     else:
         input_df = pd.read_csv(data_path + data_name + '_dense.csv')
@@ -111,16 +110,20 @@ def XGB_trainer(data_name, y_col, sensi_col, seed, num_atts, repair_path='../int
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train XGBoost Tree models for repaired data from CAPUCHIN")
 
-    parser.add_argument("--run", type=str, default='parallel',
+    parser.add_argument("--run", type=str, default='serial',
                         help="setting of 'parallel' for system evaluation or 'serial' execution for unit test.")
     parser.add_argument("--setting", type=str, default='CAP',
                         help="input of CAPUCHIN. Default is CAPUCHIN only. Choose from [CAP, singleCAP].")
-
+    # parameters for running over smaller number of datasets and few number of executions
+    parser.add_argument("--set_n", type=int, default=9,
+                        help="number of datasets over which the script is running. Default is 9 for all the datasets.")
+    parser.add_argument("--exec_n", type=int, default=20,
+                        help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
-    datasets = ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit']
-    y_cols = ['Income Binary', 'credit', 'two_year_recid'] + ['Y' for i in range(5)]
-    sensi_cols = ['sex', 'age', 'race'] + ['C0' for i in range(5)]
+    datasets = ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit', 'UFRGS']
+    y_cols = ['Income Binary', 'credit', 'two_year_recid'] + ['Y' for i in range(6)]
+    sensi_cols = ['sex', 'age', 'race'] + ['C0' for i in range(6)]
 
     seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead,
              0xdeadcafe, 0xdeadbeef, 0xbeefcafe]
@@ -132,8 +135,37 @@ if __name__ == '__main__':
                         'bank': ['X' + str(i) for i in range(1, 5)],
                         'meps16': ['X' + str(i) for i in range(1, 5)],
                         'lawgpa': ['X' + str(i) for i in range(1, 3)],
-                        'credit': ['X' + str(i) for i in range(1, 6)]
+                        'credit': ['X' + str(i) for i in range(1, 6)],
+                        'UFRGS': ['X' + str(i) for i in range(1, 10)]
                         }
+
+
+    if args.set_n is None:
+        raise ValueError(
+            'The input "set_n" is requried. Use "--set_n 1" for running over a single dataset.')
+    elif type(args.set_n) == str:
+        raise ValueError(
+            'The input "set_n" requires integer. Use "--set_n 1" for running over a single dataset.')
+    else:
+        n_datasets = int(args.set_n)
+        if n_datasets == -1:
+            datasets = datasets[n_datasets:]
+            y_cols = y_cols[n_datasets:]
+            sensi_cols = sensi_cols[n_datasets:]
+        else:
+            datasets = datasets[:n_datasets]
+            y_cols = y_cols[:n_datasets]
+            sensi_cols = sensi_cols[:n_datasets]
+
+    if args.exec_n is None:
+        raise ValueError(
+            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
+    elif type(args.exec_n) == str:
+        raise ValueError(
+            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
+    else:
+        n_exec = int(args.exec_n)
+        seeds = seeds[:n_exec]
 
 
     repair_path = '../intermediate/cap_res/'
@@ -147,4 +179,8 @@ if __name__ == '__main__':
         with Pool(cpu_count()) as pool:
             pool.starmap(XGB_trainer, tasks)
     else:
-        raise ValueError('Do not support serial execution. Use "--run parallel"!')
+        for data_name, y_col, sensi_col in zip(datasets, y_cols, sensi_cols):
+            num_atts = num_atts_mapping[data_name]
+            for seed in seeds:
+                XGB_trainer(data_name, y_col, sensi_col, seed, num_atts, repair_path)
+        # raise ValueError('Do not support serial execution. Use "--run parallel"!')

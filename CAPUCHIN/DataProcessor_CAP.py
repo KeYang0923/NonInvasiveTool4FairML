@@ -29,10 +29,11 @@ def split(data, seed, sizes=[0.7, 0.5]):
 
 def generate_CAP_repaired_data(data_name, seed, num_atts, repair_method='MF', data_path='../data/processed/',
                                output_path='../intermediate/cap_res/'):
-    if data_name in ['lawgpa', 'credit']: # for these two datasets, use the categorized version because that they originally consist of numerical attributes
+    if data_name in ['lawgpa', 'credit', 'UFRGS']: # for these two datasets, use the categorized version because that they originally consist of numerical attributes
         input_df = pd.read_csv(data_path + data_name + '_dense_cat.csv')
     else:
         input_df = pd.read_csv(data_path + data_name + '_dense.csv')
+
     train_df, _, test_df = split(input_df, seed)
 
     output_path = output_path + data_name + '/'
@@ -54,12 +55,12 @@ def generate_CAP_repaired_data(data_name, seed, num_atts, repair_method='MF', da
         D_features = ['race']
         Y_features = ['two_year_recid']
 
-    elif data_name in ['cardio', 'bank', 'meps16', 'lawgpa', 'credit']:
+    elif data_name in ['cardio', 'bank', 'meps16', 'lawgpa', 'credit', 'UFRGS']:
         D_features = ['C0']
         Y_features = ['Y']
     else:
         raise ValueError(
-            'The input dataset is not supported!. Choose from [adult, german, compas, cardio, bank, meps16]')
+            'The input dataset is not supported!. Choose from [adult, german, compas, cardio, bank, meps16, lawgpa, credit, UFRGS]')
 
     X_features = [x for x in data.columns if x not in D_features and x not in Y_features]
     indep = [D_features, Y_features, X_features]
@@ -81,10 +82,14 @@ def generate_CAP_repaired_data(data_name, seed, num_atts, repair_method='MF', da
 
 
 if __name__ == '__main__':
+
     processed_file_path = '../data/processed/'
     CAP_processed_file_path = '../intermediate/cap_res/'
-    datasets = ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit']
+
+    datasets = ['adult', 'german', 'compas', 'cardio', 'bank', 'meps16', 'lawgpa', 'credit', 'UFRGS']
     seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe, 0xdeadbeef, 0xbeefcafe]
+
+
     num_atts_mapping = {'adult': ['hours-per-week', 'age'],
                         'german': ['month', 'credit_amount'],
                         'compas': ['priors_count', 'length_of_stay'],
@@ -92,22 +97,23 @@ if __name__ == '__main__':
                         'bank': ['X' + str(i) for i in range(1, 5)],
                         'meps16': ['X' + str(i) for i in range(1, 5)],
                         'lawgpa': ['X' + str(i) for i in range(1, 3)],
-                        'credit': ['X' + str(i) for i in range(1, 6)]
+                        'credit': ['X' + str(i) for i in range(1, 6)],
+                        'UFRGS': ['X' + str(i) for i in range(1, 10)]
                         }
 
-    for data_name in datasets:
+    for data_name in datasets[-1:]:
         num_atts = num_atts_mapping[data_name]
-        if data_name in ['lawgpa', 'credit']: # categorize the attributes in these two datasets
+        if data_name in ['lawgpa', 'credit', 'UFRGS']: # categorize the attributes in these two datasets
             df = pd.read_csv(processed_file_path + data_name + '_dense.csv')
             num_atts = num_atts_mapping[data_name]
-
             k = len(num_atts)
-            labels = [i for i in range(1, k + 1)]
+            n_bins = 5
+            labels = [i for i in range(1, n_bins + 1)]
             for i in range(1, k + 1):
                 col = 'X' + str(i)
-                df[col + '_cat'] = pd.cut(df[col], bins=5, labels=labels)
+                df[col + '_cat'] = pd.cut(df[col], bins=n_bins, labels=labels)
             df.to_csv(processed_file_path + data_name + '_dense_cat.csv', index=False)
 
-        for seed in seeds:
+        for seed in seeds[:1]:
             generate_CAP_repaired_data(data_name, seed, num_atts, data_path=processed_file_path, output_path=CAP_processed_file_path)
             print('Using CAPUCHIN repaired ', data_name, seed)
