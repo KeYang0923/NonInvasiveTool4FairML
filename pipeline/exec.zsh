@@ -2,7 +2,7 @@
 python DataProcessor_AIF.py # for benchmark datasets Adult income, German credit, and COMPAS
 python DataProcessor.py --data 'all' # for other real datasets Cardio diseases, Bank marketing, MEPS, Law School GPA, Credit, and UFRGS
 
-# running CAPUCHIN to repair data
+# running CAPUCHIN to repair data, serial execution
 cd ../CAPUCHIN/
 python DataProcessor_CAP.py
 

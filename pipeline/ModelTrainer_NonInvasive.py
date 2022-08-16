@@ -14,7 +14,7 @@ warnings.filterwarnings(action='ignore')
 
 def XGB_trainer(data_name, y_col, sensi_col, seed, fair_setting,
                   res_path='../intermediate/models/',
-                  verbose=False, data_path='../data/processed/'):
+                  verbose=True, data_path='../data/processed/'):
     cur_dir = res_path + data_name + '/'
     train_weight_df = pd.read_csv(cur_dir + '-'.join(['train_weights', str(seed), fair_setting]) + '.csv')
     weights = list(train_weight_df['weights'])

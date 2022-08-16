@@ -49,10 +49,10 @@ def simulate_drift_data(data_name, seed, y_col, sensi_col, res_path='../intermed
 
     # print(len(error_indexes), sum(list(test_df[sensi_col] != test_vio_df[sensi_col])))
 
-    save_json({'Error_ID': error_indexes}, '{}test_errorID-{}-drift{:.2f}.csv'.format(cur_dir, seed, error_k))
+    save_json({'Error_ID': error_indexes}, '{}test_errorID-{}-error{:.2f}.csv'.format(cur_dir, seed, error_k))
 
-    test_vio_df.to_csv('{}test_violation-{}-drift{:.2f}.csv'.format(cur_dir, seed, error_k), index=False)
-    test_df.to_csv('{}test-{}-drift{:.2f}.csv'.format(cur_dir, seed, error_k), index=False)
+    test_vio_df.to_csv('{}test_violation-{}-error{:.2f}.csv'.format(cur_dir, seed, error_k), index=False)
+    test_df.to_csv('{}test-{}-error{:.2f}.csv'.format(cur_dir, seed, error_k), index=False)
 
 
 if __name__ == '__main__':

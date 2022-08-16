@@ -55,6 +55,16 @@ if __name__ == '__main__':
         k_exec = int(args.exec_k)
         errors_k = errors_k[:k_exec]
 
+    if args.exec_n is None:
+        raise ValueError(
+            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
+    elif type(args.exec_n) == str:
+        raise ValueError(
+            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
+    else:
+        n_exec = int(args.exec_n)
+        seeds = seeds[:n_exec]
+
     if args.run == 'parallel':
         tasks = []
         for error_k in errors_k:

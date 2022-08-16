@@ -43,8 +43,8 @@ def eval_erroneous_data(data_name, seed, y_col, sensi_col, eval_setting, fair_se
 
         setting_output = {}
         features = [x for x in test_df.columns if x != y_col and x != sensi_col]
-        cur_model = load_model_lr(cur_dir, seed, 'cc')
-        cur_thres = read_json(cur_dir + '-'.join(['Thres', str(seed), 'cc']))['thres']
+        cur_model = load_model_lr(cur_dir, seed, 'SingleCC')
+        cur_thres = read_json(cur_dir + '-'.join(['Thres', str(seed), 'SingleCC']))['thres']
 
         test_data = test_df[features]
         test_df['Y_pred'] = generate_model_predictions(data_name, cur_model, test_data, cur_thres)

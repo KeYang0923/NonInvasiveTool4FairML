@@ -118,6 +118,7 @@ def retrain_models_by_faircc(data_name, seed, y_col, sensi_col, fair_setting, we
 
     train_weights = list(train_df['weights'])
 
+
     assert len(train_weights) == train_df.shape[0]
     train_data = train_df[features]
     Y_train = np.array(train_df[y_col])
@@ -134,9 +135,11 @@ def retrain_models_by_faircc(data_name, seed, y_col, sensi_col, fair_setting, we
         dump(model, out_dir + '-'.join(['model', str(seed), fair_setting, special_suffix]) + '.joblib')
         validate_df[['Y', 'Y_pred_scores']].to_csv(out_dir + '-'.join(['y_val', str(seed), fair_setting, special_suffix]) + '.csv',
                                                    index=False)
+        train_df.to_csv(out_dir + '-'.join(['train_weights', str(seed), fair_setting, special_suffix]) + '.csv', index=False)
     else:
         dump(model, out_dir + '-'.join(['model', str(seed), fair_setting]) + '.joblib')
         validate_df[['Y', 'Y_pred_scores']].to_csv(out_dir + '-'.join(['y_val', str(seed), fair_setting]) + '.csv', index=False)
+        train_df.to_csv(out_dir + '-'.join(['train_weights', str(seed), fair_setting]) + '.csv', index=False)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Apply fairness intervention on training data with a single ML model and retrain the model under a fixed interention degree")

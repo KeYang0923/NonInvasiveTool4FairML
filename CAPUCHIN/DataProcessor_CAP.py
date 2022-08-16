@@ -114,6 +114,6 @@ if __name__ == '__main__':
                 df[col + '_cat'] = pd.cut(df[col], bins=n_bins, labels=labels)
             df.to_csv(processed_file_path + data_name + '_dense_cat.csv', index=False)
 
-        for seed in seeds[:1]:
+        for seed in seeds[1:]:
             generate_CAP_repaired_data(data_name, seed, num_atts, data_path=processed_file_path, output_path=CAP_processed_file_path)
             print('Using CAPUCHIN repaired ', data_name, seed)
