@@ -1,0 +1,27 @@
+{
+  "target": "SeriousDlqin2yrs",
+  "target_positive_value": "A loan is granted",
+  "sensitive_feature": "age",
+  "size": 100000,
+  "n_features": 7,
+  "continuous_features": [
+    "NumberOfTime30-59DaysPastDueNotWorse",
+    "RevolvingUtilizationOfUnsecuredLines",
+    "MonthlyIncome",
+    "DebtRatio",
+    "NumberOfTimes90DaysLate",
+    "NumberOfOpenCreditLinesAndLoans"
+  ],
+  "categorical_features": [],
+  "protected_group": [
+    "age >= 65"
+  ],
+  "feature_name_mapping": {
+    "NumberOfTime30-59DaysPastDueNotWorse": "X1",
+    "RevolvingUtilizationOfUnsecuredLines": "X2",
+    "MonthlyIncome": "X3",
+    "DebtRatio": "X4",
+    "NumberOfTimes90DaysLate": "X5",
+    "NumberOfOpenCreditLinesAndLoans": "X6"
+  }
+}

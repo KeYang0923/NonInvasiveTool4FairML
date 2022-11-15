@@ -1,0 +1,46 @@
+{
+  "target": "Y",
+  "target_positive_value": "JWMNP > 20",
+  "sensitive_feature": "RACE",
+  "size": 100000,
+  "n_features": 16,
+  "continuous_features": [
+    "OCCP",
+    "POVPIP",
+    "AGEP",
+    "ESP",
+    "POWPUMA",
+    "SCHL",
+    "JWTR",
+    "RELP",
+    "PUMA"
+  ],
+  "categorical_features": [
+    "MAR",
+    "SEX",
+    "DIS",
+    "ST",
+    "MIG",
+    "CIT"
+  ],
+  "protected_group": [
+    "Black"
+  ],
+  "feature_name_mapping": {
+    "OCCP": "X1",
+    "POVPIP": "X2",
+    "AGEP": "X3",
+    "ESP": "X4",
+    "POWPUMA": "X5",
+    "SCHL": "X6",
+    "JWTR": "X7",
+    "RELP": "X8",
+    "PUMA": "X9",
+    "MAR": "X10",
+    "SEX": "X11",
+    "DIS": "X12",
+    "ST": "X13",
+    "MIG": "X14",
+    "CIT": "X15"
+  }
+}

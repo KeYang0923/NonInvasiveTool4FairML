@@ -1,0 +1,34 @@
+{
+  "target": "y",
+  "target_positive_value": "whether a client will make a deposit subscription or not",
+  "sensitive_feature": "age",
+  "size": 30488,
+  "n_features": 10,
+  "continuous_features": [
+    "month",
+    "job",
+    "duration"
+  ],
+  "categorical_features": [
+    "housing",
+    "marital",
+    "day_of_week",
+    "loan",
+    "education",
+    "contact"
+  ],
+  "protected_group": [
+    "age <= 25"
+  ],
+  "feature_name_mapping": {
+    "month": "X1",
+    "job": "X2",
+    "duration": "X3",
+    "housing": "X4",
+    "marital": "X5",
+    "day_of_week": "X6",
+    "loan": "X7",
+    "education": "X8",
+    "contact": "X9"
+  }
+}

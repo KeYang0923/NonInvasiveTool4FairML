@@ -1,0 +1,56 @@
+{
+  "target": "Y",
+  "target_positive_value": "MIG",
+  "sensitive_feature": "RACE",
+  "size": 49894,
+  "n_features": 21,
+  "continuous_features": [
+    "COW",
+    "WKHP",
+    "JWMNP",
+    "AGEP",
+    "RELP",
+    "SCHL",
+    "PINCP"
+  ],
+  "categorical_features": [
+    "CIT",
+    "SEX",
+    "ANC",
+    "DEYE",
+    "MAR",
+    "MIL",
+    "NATIVITY",
+    "DEAR",
+    "ESP",
+    "DIS",
+    "GCL",
+    "ESR",
+    "DREM"
+  ],
+  "protected_group": [
+    "Black"
+  ],
+  "feature_name_mapping": {
+    "COW": "X1",
+    "WKHP": "X2",
+    "JWMNP": "X3",
+    "AGEP": "X4",
+    "RELP": "X5",
+    "SCHL": "X6",
+    "PINCP": "X7",
+    "CIT": "X8",
+    "SEX": "X9",
+    "ANC": "X10",
+    "DEYE": "X11",
+    "MAR": "X12",
+    "MIL": "X13",
+    "NATIVITY": "X14",
+    "DEAR": "X15",
+    "ESP": "X16",
+    "DIS": "X17",
+    "GCL": "X18",
+    "ESR": "X19",
+    "DREM": "X20"
+  }
+}

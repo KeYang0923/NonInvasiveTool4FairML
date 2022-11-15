@@ -1,0 +1,46 @@
+{
+  "target": "Y",
+  "target_positive_value": "ESR",
+  "sensitive_feature": "RACE",
+  "size": 100000,
+  "n_features": 16,
+  "continuous_features": [
+    "ESP",
+    "RELP",
+    "AGEP",
+    "SCHL"
+  ],
+  "categorical_features": [
+    "MIL",
+    "CIT",
+    "DEAR",
+    "NATIVITY",
+    "SEX",
+    "MIG",
+    "ANC",
+    "MAR",
+    "DIS",
+    "DREM",
+    "DEYE"
+  ],
+  "protected_group": [
+    "Black"
+  ],
+  "feature_name_mapping": {
+    "ESP": "X1",
+    "RELP": "X2",
+    "AGEP": "X3",
+    "SCHL": "X4",
+    "MIL": "X5",
+    "CIT": "X6",
+    "DEAR": "X7",
+    "NATIVITY": "X8",
+    "SEX": "X9",
+    "MIG": "X10",
+    "ANC": "X11",
+    "MAR": "X12",
+    "DIS": "X13",
+    "DREM": "X14",
+    "DEYE": "X15"
+  }
+}

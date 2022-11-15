@@ -1,0 +1,52 @@
+{
+  "target": "Y",
+  "target_positive_value": "PUBCOV",
+  "sensitive_feature": "RACE",
+  "size": 86600,
+  "n_features": 19,
+  "continuous_features": [
+    "AGEP",
+    "SCHL",
+    "ESP",
+    "PINCP"
+  ],
+  "categorical_features": [
+    "SEX",
+    "ANC",
+    "MAR",
+    "NATIVITY",
+    "ESR",
+    "DREM",
+    "FER",
+    "DEAR",
+    "MIL",
+    "CIT",
+    "ST",
+    "MIG",
+    "DEYE",
+    "DIS"
+  ],
+  "protected_group": [
+    "Black"
+  ],
+  "feature_name_mapping": {
+    "AGEP": "X1",
+    "SCHL": "X2",
+    "ESP": "X3",
+    "PINCP": "X4",
+    "SEX": "X5",
+    "ANC": "X6",
+    "MAR": "X7",
+    "NATIVITY": "X8",
+    "ESR": "X9",
+    "DREM": "X10",
+    "FER": "X11",
+    "DEAR": "X12",
+    "MIL": "X13",
+    "CIT": "X14",
+    "ST": "X15",
+    "MIG": "X16",
+    "DEYE": "X17",
+    "DIS": "X18"
+  }
+}
