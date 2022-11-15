@@ -8,6 +8,12 @@ conda activate venv
 pip install -r requirements.txt
 ```
 
+## Install CC tool
+Download the folder "DataInsights" from https://github.com/microsoft/prose/tree/main/misc/CCSynth/CC and copy this folder inside your local directory of this repository.
+```bash
+pip install -e DataInsights
+```
+
 ## Run the tool
 Then download the code repository and cd to the "pipeline" folder inside of your downloaded local directory. Run the experiments using the current command.
 
