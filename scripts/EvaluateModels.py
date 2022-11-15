@@ -1,5 +1,5 @@
 import warnings
-import argparse
+import argparse, os
 from multiprocessing import Pool, cpu_count
 import numpy as np
 import pandas as pd
@@ -173,12 +173,11 @@ if __name__ == '__main__':
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
-    # datasets = ['cardio', 'bank', 'meps16', 'lsac', 'credit', 'ACSE', 'ACSP', 'ACSH', 'ACSM', 'ACSI']
-    # seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe, 0xdeadbeef, 0xbeefcafe]
+    datasets = ['lsac', 'cardio', 'bank', 'meps16', 'ACSE', 'ACSP', 'ACSH', 'ACSM', 'ACSI']
+    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe,
+             0xdeadbeef, 0xbeefcafe]
 
     # datasets = ['cardio', 'bank', 'meps16', 'lsac'] # todo: run retrain for 'ACSM', 'ACSI'
-    seeds = [1, 12345, 6, 2211, 15]
-    datasets = ['cardio', 'bank', 'meps16', 'lsac', 'credit', 'ACSE', 'ACSP', 'ACSM', 'ACSI'] # for MCC
     # seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe,
     #          0xdeadbeef, 0xbeefcafe]
 
@@ -209,7 +208,8 @@ if __name__ == '__main__':
         n_exec = int(args.exec_n)
         seeds = seeds[:n_exec]
 
-    res_path = '../intermediate/models/'
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    res_path = repo_dir + '/intermediate/models/'
     # for data_name in datasets:
     #     for seed in seeds:
     #         eval_predicitons(data_name, seed, args.method, args.base, res_path)

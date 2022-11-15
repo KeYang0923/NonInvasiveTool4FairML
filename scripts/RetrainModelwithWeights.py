@@ -1,6 +1,6 @@
 # Train and store Logistic Regression models on original data
 import warnings
-import argparse
+import argparse, os
 from multiprocessing import Pool, cpu_count
 import pandas as pd
 import numpy as np
@@ -137,8 +137,8 @@ def find_optimal_thres(y_val_df, opt_obj='BalAcc', num_thresh=100, verbose=False
     return {'thres': best_class_thresh, opt_obj: np.max(ba_arr)}
 
 def LR_trainer(data_name, seed, reweigh_method, weight_base, inter_high=None, res_path='../intermediate/models/',
-               verbose=False, set_suffix='S_1', data_path='../data/processed/', y_col = 'Y', sensi_col='A'):
-
+               verbose=False, set_suffix='S_1', data_path='data/processed/', y_col = 'Y', sensi_col='A'):
+    repo_dir = res_path.replace('intermediate/models/', '')
     cur_dir = res_path + data_name + '/'
     make_folder(cur_dir)
     train_df = pd.read_csv(cur_dir + '-'.join(['train_vio', str(seed)]) + '.csv')
@@ -146,7 +146,7 @@ def LR_trainer(data_name, seed, reweigh_method, weight_base, inter_high=None, re
     validate_df = pd.read_csv(cur_dir + '-'.join(['val', str(seed), set_suffix]) + '.csv')
     test_df = pd.read_csv(cur_dir + '-'.join(['test', str(seed), set_suffix]) + '.csv')
 
-    meta_info = read_json(data_path + data_name + '.json')
+    meta_info = read_json(repo_dir+'/'+data_path + data_name + '.json')
     n_features = meta_info['n_features']  # including sensitive column
 
     if set_suffix == 'S_1':
@@ -300,7 +300,7 @@ if __name__ == '__main__':
     parser.add_argument("--high", type=float, default=0.3,
                         help="additional scale of weights for OmniFair and SCC. Default is 5 for all the datasets.")
     # parameters for running over smaller number of datasets and few number of executions
-    parser.add_argument("--set_n", type=int, default=8,
+    parser.add_argument("--set_n", type=int, default=9,
                         help="number of datasets over which the script is running. Default is 9 for all the datasets.")
     parser.add_argument("--exec_n", type=int, default=5,
                         help="number of executions with different random seeds. Default is 20.")
@@ -309,36 +309,38 @@ if __name__ == '__main__':
     # datasets = ['cardio', 'bank', 'meps16', 'lsac', 'credit', 'ACSE', 'ACSP', 'ACSH', 'ACSM', 'ACSI']
     # seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe, 0xdeadbeef, 0xbeefcafe]
 
-    datasets = ['cardio', 'bank', 'meps16', 'lsac']  #'ACSE', 'ACSP', 'ACSM', 'ACSI'
-    seeds = [1, 12345, 6, 2211, 15]
+    datasets = ['lsac', 'cardio', 'bank', 'meps16', 'ACSE', 'ACSP', 'ACSH', 'ACSM', 'ACSI']
+    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe,
+             0xdeadbeef, 0xbeefcafe]
 
     # datasets = ['lsac'] #'credit', 'ACSH'
     # seeds = [1]
 
-    # if args.set_n is None:
-    #     raise ValueError(
-    #         'The input "set_n" is requried. Use "--set_n 1" for running over a single dataset.')
-    # elif type(args.set_n) == str:
-    #     raise ValueError(
-    #         'The input "set_n" requires integer. Use "--set_n 1" for running over a single dataset.')
-    # else:
-    #     n_datasets = int(args.set_n)
-    #     if n_datasets == -1:
-    #         datasets = datasets[n_datasets:]
-    #     else:
-    #         datasets = datasets[:n_datasets]
-    #
-    # if args.exec_n is None:
-    #     raise ValueError(
-    #         'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
-    # elif type(args.exec_n) == str:
-    #     raise ValueError(
-    #         'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
-    # else:
-    #     n_exec = int(args.exec_n)
-    #     seeds = seeds[:n_exec]
+    if args.set_n is None:
+        raise ValueError(
+            'The input "set_n" is requried. Use "--set_n 1" for running over a single dataset.')
+    elif type(args.set_n) == str:
+        raise ValueError(
+            'The input "set_n" requires integer. Use "--set_n 1" for running over a single dataset.')
+    else:
+        n_datasets = int(args.set_n)
+        if n_datasets == -1:
+            datasets = datasets[n_datasets:]
+        else:
+            datasets = datasets[:n_datasets]
 
-    res_path = '../intermediate/models/'
+    if args.exec_n is None:
+        raise ValueError(
+            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
+    elif type(args.exec_n) == str:
+        raise ValueError(
+            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
+    else:
+        n_exec = int(args.exec_n)
+        seeds = seeds[:n_exec]
+
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    res_path = repo_dir + '/intermediate/models/'
     # for data_name in datasets:
     #     for seed in seeds:
     #         LR_trainer(data_name, seed, args.weight, args.base, args.high, res_path)

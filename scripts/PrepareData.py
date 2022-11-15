@@ -3,11 +3,11 @@
 
 import warnings
 from sklearn import preprocessing
-import argparse
+# import argparse
 
 import pandas as pd
 import numpy as np
-import json
+import json, os
 warnings.filterwarnings(action='ignore')
 
 class Dataset():
@@ -466,7 +466,8 @@ class ACSIncomePovertyRatio(Dataset):
                              sensi_transform_flag)
 if __name__ == '__main__':
     # initiate objects for real datasets and proprocess it with meta information extracted
-    save_path = '../data/processed'
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    save_path = repo_dir + '/data/processed'
     # cardio = Cardio()
     # cardio.preprocess(save_path)
     # cardio.save_json(save_path)

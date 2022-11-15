@@ -11,3 +11,7 @@ python TuneWeightScales.py --weight 'omn'
 python TuneWeightScales.py --weight 'scc'
 python TuneWeightScales.py --weight 'scc' --base 'kam'
 python TuneWeightScales.py --weight 'scc' --base 'omn'
+
+python TrainMLModels.py --set_n 1 --exec_n 1
+
+python LearnCCrules.py --set_n 1 --exec_n 1

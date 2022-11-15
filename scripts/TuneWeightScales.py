@@ -1,6 +1,6 @@
 # Train and store Logistic Regression models on original data
 import warnings
-import argparse
+import argparse, os
 from multiprocessing import Pool, cpu_count
 
 import pandas as pd
@@ -142,16 +142,17 @@ def find_optimal_thres(y_val_df, opt_obj='BalAcc', num_thresh=100, verbose=False
     return {'thres': best_class_thresh, opt_obj: np.max(ba_arr)}
 
 
-def get_sp(settings, inter_high=10, low=0, res_path='../intermediate/models/',
-            set_suffix='S_1', data_path='../data/processed/', y_col = 'Y', sensi_col='A'):
-    data_name, seed, reweigh_method, weight_base = settings
-    cur_dir = res_path + data_name + '/'
+def get_sp(settings, inter_high=10, low=0,
+            set_suffix='S_1', data_path='data/processed/', y_col = 'Y', sensi_col='A'):
+    data_name, seed, reweigh_method, weight_base, cur_path = settings
+    repo_dir = cur_path.replace('intermediate/models/', '')
+    cur_dir = cur_path + data_name + '/'
     make_folder(cur_dir)
 
     train_df = pd.read_csv(cur_dir + '-'.join(['train_vio', str(seed)]) + '.csv')
     validate_df = pd.read_csv(cur_dir + '-'.join(['val', str(seed), set_suffix]) + '.csv')
 
-    meta_info = read_json(data_path + data_name + '.json')
+    meta_info = read_json(repo_dir + data_path + data_name + '.json')
     n_features = meta_info['n_features']  # including sensitive column
 
     if set_suffix == 'S_1':
@@ -256,7 +257,7 @@ def search_inter_high(settings, save_f, val_try, acc_previous, sp_previous, left
 
 def LR_trainer(data_name, seed, reweigh_method, weight_base, verbose, res_path='../intermediate/models/'):
     cur_dir = res_path + data_name + '/'
-    settings = (data_name, seed, reweigh_method, weight_base)
+    settings = (data_name, seed, reweigh_method, weight_base, res_path)
 
     if verbose:
         print_f = open('{}degrees-{}-{}-{}.txt'.format(cur_dir, seed, reweigh_method, weight_base), 'w')
@@ -283,20 +284,15 @@ if __name__ == '__main__':
     parser.add_argument("--save", type=int, default=0,
                         help="whether to print the results of degrees into disc.")
     # parameters for running over smaller number of datasets and few number of executions
-    parser.add_argument("--set_n", type=int, default=8,
+    parser.add_argument("--set_n", type=int, default=9,
                         help="number of datasets over which the script is running. Default is 10 for all the datasets.")
     parser.add_argument("--exec_n", type=int, default=5,
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
-    # datasets = ['cardio', 'bank', 'meps16', 'lsac', 'credit', 'ACSE', 'ACSP', 'ACSH', 'ACSM', 'ACSI']
-    # seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe, 0xdeadbeef, 0xbeefcafe]
-
-    # datasets = ['cardio', 'bank', 'meps16', 'lsac', 'ACSE', 'ACSP', 'ACSM', 'ACSI']
-    # seeds = [1, 12345, 6, 2211, 15]
-
-    datasets = ['lsac']
-    seeds = [1]
+    datasets = ['lsac', 'cardio', 'bank', 'meps16', 'ACSE', 'ACSP', 'ACSH', 'ACSM', 'ACSI']
+    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe,
+             0xdeadbeef, 0xbeefcafe]
 
     if args.set_n is None:
         raise ValueError(
@@ -321,17 +317,18 @@ if __name__ == '__main__':
         n_exec = int(args.exec_n)
         seeds = seeds[:n_exec]
 
-    res_path = '../intermediate/models/'
-    for data_name in datasets:
-        for seed in seeds:
-            LR_trainer(data_name, seed, args.weight, args.base, args.save, res_path)
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    res_path = repo_dir + '/intermediate/models/'
+    # for data_name in datasets:
+    #     for seed in seeds:
+    #         LR_trainer(data_name, seed, args.weight, args.base, args.save, res_path)
 
-    # if args.run == 'parallel':
-    #     tasks = []
-    #     for data_name in datasets:
-    #         for seed in seeds:
-    #             tasks.append([data_name, seed, args.weight, args.base, args.depth, res_path])
-    #     with Pool(cpu_count()//2) as pool:
-    #         pool.starmap(LR_trainer, tasks)
-    # else:
-    #     raise ValueError('Do not support serial execution. Use "--run parallel"!')
+    if args.run == 'parallel':
+        tasks = []
+        for data_name in datasets:
+            for seed in seeds:
+                tasks.append([data_name, seed, args.weight, args.base, args.depth, res_path])
+        with Pool(cpu_count()//2) as pool:
+            pool.starmap(LR_trainer, tasks)
+    else:
+        raise ValueError('Do not support serial execution. Use "--run parallel"!')

@@ -28,17 +28,16 @@ def combine_violation(x):
 
 def learn_cc_models(data_name, seed, dense_kernal='guassian',
                     res_path='../intermediate/models/',
-                    data_path='../data/processed/',
+                    data_path='data/processed/',
                     set_suffix='S_1',
                     n_groups=2, n_labels=2, sensi_col='A', y_col='Y',
                     dense_n=0.2, dense_h=0.1, algorithm='auto'):
-
-
+    repo_dir = res_path.replace('intermediate/models/', '')
     cur_dir = res_path + data_name + '/'
 
     train_df = pd.read_csv(cur_dir + '-'.join(['train', str(seed), set_suffix]) + '.csv')
     test_df = pd.read_csv(cur_dir + '-'.join(['test', str(seed), set_suffix]) + '.csv')
-    meta_info = read_json(data_path + data_name + '.json')
+    meta_info = read_json(repo_dir + '/'+ data_path + data_name + '.json')
     n_cond_features = len(meta_info['continuous_features'])
 
     cc_cols = ['X{}'.format(i) for i in range(1, n_cond_features+1)]
@@ -85,9 +84,7 @@ if __name__ == '__main__':
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
-    datasets = ['cardio', 'bank', 'meps16', 'lsac', 'credit', 'ACSE', 'ACSP', 'ACSM', 'ACSI']
-    # datasets = ['lsac']
-
+    datasets = ['lsac', 'cardio', 'bank', 'meps16', 'ACSE', 'ACSP', 'ACSH', 'ACSM', 'ACSI']
     seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe,
              0xdeadbeef, 0xbeefcafe]
 
@@ -114,7 +111,8 @@ if __name__ == '__main__':
         n_exec = int(args.exec_n)
         seeds = seeds[:n_exec]
 
-    res_path = '../intermediate/models/'
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    res_path = repo_dir + '/intermediate/models/'
 
     if args.run == 'parallel':
         tasks = []
