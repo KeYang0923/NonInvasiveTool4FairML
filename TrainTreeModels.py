@@ -51,9 +51,15 @@ class XgBoost(Learner):
         search = GridSearchCV(pipeline, param_grid, scoring=self.scoring, cv=5, verbose=-1, n_jobs=-1)
 
         if sample_weight is not None:
-            model = search.fit(train_data, train_Y, **{'learner__sample_weight': sample_weight})
+            try:
+                model = search.fit(train_data, train_Y, **{'learner__sample_weight': sample_weight})
+            except:
+                model = None
         else:
-            model = search.fit(train_data, train_Y)
+            try:
+                model = search.fit(train_data, train_Y)
+            except:
+                model = None
         return model
 
 
@@ -87,51 +93,52 @@ def XGB_trainer(data_name, seed, sensi_flag=1, res_path='../intermediate/models/
 
 
     model = learner.fit(train_data, Y_train, features, seed)
-
-    # for optimal threshold selection
-    val_df['Y_pred_scores'] = generate_model_predictions(model, val_data)
-
-    dump(model, cur_dir + '-'.join(['trmodel', str(seed), set_suffix]) + '.joblib')
-
-    # optimize threshold first
-    opt_thres = find_optimal_thres(val_df, opt_obj='BalAcc')
-    par_dict = {'thres': opt_thres['thres'], 'BalAcc': opt_thres['BalAcc']}
-
-    # train group-level models for MultiCC
-    for group_i in range(n_groups):
-        group_train_df = train_df[train_df[sensi_col] == group_i].copy()
-        group_val_df = val_df[val_df[sensi_col] == group_i].copy()
-
-        group_train_data = group_train_df[features]
-        group_Y_train = np.array(group_train_df[y_col])
-
-        group_val_data = group_val_df[features]
-        group_Y_val = np.array(group_val_df[y_col])
-
-        group_model = learner.fit(group_train_data, group_Y_train, features, seed)
+    if model is not None:
 
         # for optimal threshold selection
-        group_val_df['Y'] = group_Y_val
-        group_val_df['Y_pred_scores'] = generate_model_predictions(group_model, group_val_data)
+        val_df['Y_pred_scores'] = generate_model_predictions(model, val_data)
 
-        group_opt_thres = find_optimal_thres(group_val_df, opt_obj='BalAcc')
-        par_dict.update({'thres_g{}'.format(group_i): group_opt_thres['thres'],
-                         'BalAcc_g{}'.format(group_i): group_opt_thres['BalAcc']})
+        dump(model, cur_dir + '-'.join(['trmodel', str(seed), set_suffix]) + '.joblib')
 
-        dump(group_model, cur_dir + '-'.join(['trmodel', str(seed), 'G' + str(group_i), set_suffix]) + '.joblib')
+        # optimize threshold first
+        opt_thres = find_optimal_thres(val_df, opt_obj='BalAcc')
+        par_dict = {'thres': opt_thres['thres'], 'BalAcc': opt_thres['BalAcc']}
 
-    end = timeit.default_timer()
-    time = end - start
-    save_json({'time': time}, '{}trmltime-{}.json'.format(cur_dir, seed))
+        # train group-level models for MultiCC
+        for group_i in range(n_groups):
+            group_train_df = train_df[train_df[sensi_col] == group_i].copy()
+            group_val_df = val_df[val_df[sensi_col] == group_i].copy()
 
-    save_json(par_dict, '{}trthres-{}-{}.json'.format(cur_dir, seed, set_suffix))
+            group_train_data = group_train_df[features]
+            group_Y_train = np.array(group_train_df[y_col])
 
-    if verbose:
-        Y_train_pred = generate_model_predictions(model, train_data, opt_thres=0.5)
-        score_train = learner.score(Y_train, Y_train_pred)
-        print('---' * 8, data_name, seed, '---' * 8)
-        print(learner.scoring, "on train data: ", score_train)
-        print('---' * 10, '\n')
+            group_val_data = group_val_df[features]
+            group_Y_val = np.array(group_val_df[y_col])
+
+            group_model = learner.fit(group_train_data, group_Y_train, features, seed)
+
+            # for optimal threshold selection
+            group_val_df['Y'] = group_Y_val
+            group_val_df['Y_pred_scores'] = generate_model_predictions(group_model, group_val_data)
+
+            group_opt_thres = find_optimal_thres(group_val_df, opt_obj='BalAcc')
+            par_dict.update({'thres_g{}'.format(group_i): group_opt_thres['thres'],
+                             'BalAcc_g{}'.format(group_i): group_opt_thres['BalAcc']})
+
+            dump(group_model, cur_dir + '-'.join(['trmodel', str(seed), 'G' + str(group_i), set_suffix]) + '.joblib')
+
+        end = timeit.default_timer()
+        time = end - start
+        save_json({'time': time}, '{}trmltime-{}.json'.format(cur_dir, seed))
+
+        save_json(par_dict, '{}trthres-{}-{}.json'.format(cur_dir, seed, set_suffix))
+
+        if verbose:
+            Y_train_pred = generate_model_predictions(model, train_data, opt_thres=0.5)
+            score_train = learner.score(Y_train, Y_train_pred)
+            print('---' * 8, data_name, seed, '---' * 8)
+            print(learner.scoring, "on train data: ", score_train)
+            print('---' * 10, '\n')
 
 
 if __name__ == '__main__':

@@ -6,11 +6,10 @@ from multiprocessing import Pool, cpu_count
 import pandas as pd
 import numpy as np
 
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import confusion_matrix
 
-import json
-from TrainMLModels import make_folder, read_json, LogisticRegression, generate_model_predictions, find_optimal_thres, compute_bal_acc
-
+from TrainMLModels import read_json, LogisticRegression, generate_model_predictions, find_optimal_thres, compute_bal_acc
+from TrainTreeModels import XgBoost
 warnings.filterwarnings(action='ignore')
 
 def format_print(str_input, output_f=None):
@@ -99,14 +98,21 @@ def compute_weights(df, method, sample_base='zero', alpha_g0=2.0, alpha_g1=1.0, 
     return sample_weights
 
 
-def retrain_LR_all_degrees(data_name, seed, reweigh_method, weight_base, verbose, res_path='../intermediate/models/',
+def retrain_LR_all_degrees(data_name, seed, model, reweigh_method, weight_base, verbose, res_path='../intermediate/models/',
                degree_start=0.01, degree_end=2.0, degree_step=0.01,
                set_suffix='S_1', data_path='data/processed/', y_col = 'Y', sensi_col='A'):
     cur_dir = res_path + data_name + '/'
     repo_dir = res_path.replace('intermediate/models/', '')
+    if model == 'tr':
+        train_df = pd.read_csv(cur_dir + '-'.join(['train', str(seed), 'bin']) + '.csv')
+        val_df = pd.read_csv(cur_dir + '-'.join(['val', str(seed), 'bin']) + '.csv')
 
-    train_df = pd.read_csv(cur_dir + '-'.join(['train_vio', str(seed)]) + '.csv')
-    validate_df = pd.read_csv(cur_dir + '-'.join(['val', str(seed), set_suffix]) + '.csv')
+        vio_train_df = pd.read_csv(cur_dir + '-'.join(['train_vio', str(seed)]) + '.csv')
+        train_df['vio_cc'] = vio_train_df['vio_cc']
+
+    else:
+        train_df = pd.read_csv(cur_dir + '-'.join(['train_vio', str(seed)]) + '.csv')
+        val_df = pd.read_csv(cur_dir + '-'.join(['val', str(seed), set_suffix]) + '.csv')
 
     meta_info = read_json(repo_dir + data_path + data_name + '.json')
     n_features = meta_info['n_features']  # including sensitive column
@@ -115,32 +121,36 @@ def retrain_LR_all_degrees(data_name, seed, reweigh_method, weight_base, verbose
         features = ['X{}'.format(i) for i in range(1, n_features)] + [sensi_col]
     else:
         features = ['X{}'.format(i) for i in range(1, n_features)]
+
     train_data = train_df[features]
     Y_train = np.array(train_df[y_col])
-    val_data = validate_df[features]
+    val_data = val_df[features]
 
     if verbose: # save the experimental intervention degree on disc
-        print_f = open('{}degrees-{}-{}-{}.txt'.format(cur_dir, seed, reweigh_method, weight_base), 'w')
+        print_f = open('{}{}degrees-{}-{}-{}.txt'.format(cur_dir, model, seed, reweigh_method, weight_base), 'w')
     else: # print out the experimental intervention degree
         print_f = None
 
     cur_degree = degree_start
     while cur_degree < degree_end:
         weights = compute_weights(train_df, reweigh_method, weight_base, omn_lam=cur_degree, alpha_g0=cur_degree, alpha_g1=cur_degree/2)
-        learner = LogisticRegression()
+        if model == 'tr':
+            learner = XgBoost()
+        else:
+            learner = LogisticRegression()
         model = learner.fit(train_data, Y_train, features, seed, weights)
+        if model is not None:
+            val_df['Y_pred_scores'] = generate_model_predictions(model, val_data)
 
-        validate_df['Y_pred_scores'] = generate_model_predictions(model, val_data)
+            # optimize threshold first
+            opt_thres = find_optimal_thres(val_df, opt_obj='BalAcc')
+            cur_thresh = opt_thres['thres']
 
-        # optimize threshold first
-        opt_thres = find_optimal_thres(validate_df, opt_obj='BalAcc')
-        cur_thresh = opt_thres['thres']
+            val_df['Y_pred'] = val_df['Y_pred_scores'].apply(lambda x: int(x > cur_thresh))
+            cur_sp = eval_sp(val_df, 'Y_pred')
+            cur_acc = compute_bal_acc(val_df['Y'], val_df['Y_pred'])
 
-        validate_df['Y_pred'] = validate_df['Y_pred_scores'].apply(lambda x: int(x > cur_thresh))
-        cur_sp = eval_sp(validate_df, 'Y_pred')
-        cur_acc = compute_bal_acc(validate_df['Y'], validate_df['Y_pred'])
-
-        format_print('---{} {} {}---'.format(cur_degree, cur_acc, cur_sp), print_f)
+            format_print('---{} {} {}---'.format(cur_degree, cur_acc, cur_sp), print_f)
 
         cur_degree += degree_step
     if verbose:
@@ -150,6 +160,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Iterate all intervention degrees on real data")
     parser.add_argument("--run", type=str, default='parallel',
                         help="setting of 'parallel' for system evaluation or 'serial' execution for unit test.")
+    parser.add_argument("--model", type=str,
+                        help="which model to evaluate. CHOOSE FROM '[lr, tr]'.")
     parser.add_argument("--weight", type=str, default='scc',
                         help="which weighing method to use in training ML models.")
     parser.add_argument("--base", type=str, default='one',
@@ -197,7 +209,7 @@ if __name__ == '__main__':
         tasks = []
         for data_name in datasets:
             for seed in seeds:
-                tasks.append([data_name, seed, args.weight, args.base, args.save, res_path])
+                tasks.append([data_name, seed, args.model, args.weight, args.base, args.save, res_path])
         with Pool(cpu_count()//2) as pool:
             pool.starmap(retrain_LR_all_degrees, tasks)
     else:
