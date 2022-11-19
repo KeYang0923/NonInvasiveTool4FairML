@@ -1,20 +1,25 @@
 from __future__ import division
 import sys
-import matplotlib as mpl
-mpl.use('TkAgg')
-from Modules.MatrixOprations.contin_table import *
+# import matplotlib as mpl
+# mpl.use('TkAgg')
+from CAPUCHIN.Modules.InformationTheory.info_theo import Info
+from CAPUCHIN.Modules.MatrixOprations.contin_table import *
+from CAPUCHIN.utils.read_data import read_from_csv
+from CAPUCHIN.utils.util import get_distinct
 import random
 #import tensorly as tl
 import numpy as np
 from scipy.sparse import csr_matrix, find
-from  Core.grounder import  data_from_sat,grounder4,sing_grounder
-matplotlib.use('TkAgg')
+from CAPUCHIN.Core.grounder import data_from_sat, sing_grounder
+# matplotlib.use('TkAgg')
 import multiprocessing
 from functools import partial
 from contextlib import contextmanager
-import timeit
+import timeit, os
 start_time = timeit.default_timer()
 import psutil
+
+
 
 def chunks(l, n):
     n=int(n)
@@ -27,7 +32,7 @@ class Repair(object):
 
 
 
-    def from_file_indep_repair(self, path, X, Y, Z=[], method='MF', k=1, n_parti=8, sample_frac=1,smother=1, insert_ratio=1,in_weight=10000000,out_weight=10000000,conf_weight=10000000):
+    def from_file_indep_repair(self, path, X, Y, Z=[], name_suffix=None, method='MF', k=1, n_parti=8, sample_frac=1, smother=1, insert_ratio=1,in_weight=10000000,out_weight=10000000,conf_weight=10000000):
         rep = Repair()
         run_time=[]
         sat_times=[]
@@ -37,8 +42,12 @@ class Repair(object):
         size=0
 
         # cur_train = read_from_csv(path + str(j) + '.csv')
-        cur_train = read_from_csv(path + str(k) + '.csv')
-
+        if name_suffix:
+            cur_train = read_from_csv(path + str(k) + name_suffix + '.csv')
+            output_path = path + str(k) + name_suffix
+        else:
+            cur_train = read_from_csv(path + str(k) + '.csv')
+            output_path = path + str(k) + name_suffix
         #cur_train=cur_train.sample(frac=0.01)
         inf=Info(cur_train)
         CMI=inf.CMI(X, Y, Z)
@@ -63,13 +72,15 @@ class Repair(object):
         #print('Data after repair', len(rep_train.index),'CMI:', inf.CMI(X,Y,Z), 'time: ',end)
 
         if method!='sat':
-          rep_train.to_csv(path+'_rep'+method+'_'+ str(k) + '.csv', encoding='utf-8', index=False)
+            rep_train.to_csv(output_path + '-repair.csv', index=False, encoding='utf-8')
+            # rep_train.to_csv(path+'_rep'+method+'_'+ str(k) + '.csv', encoding='utf-8', index=False)
           #print(path + '_rep' + method + '_' + str(j) + '.csv')
         else:
             if 0<1:
                 path1=path + '_rep' + str(method) + '_' + str(insert_ratio)+  '_' + str(k)+'.csv'
             else:
                 path1=str(path) + '_rep' + str(method) + '_' + str(k)+'.csv'
+
             rep_train.to_csv(path1, index=False, encoding='utf-8')
         
 
@@ -239,7 +250,7 @@ class Repair(object):
         #print(total)
         return df
 
-    def repair(self, data,path, X, Y, Z=[], method='MF',insert_ratio=1,sample_size=1, chunk_size=1,conf_weight=1):
+    def repair(self, data,path, X, Y, Z=[], method='MF', insert_ratio=1, sample_size=1, chunk_size=1,conf_weight=1):
         absFilePath = os.path.abspath(__file__)
         fileDir = os.path.dirname(os.path.abspath(__file__))
         directory = os.path.dirname(fileDir)

@@ -5,9 +5,9 @@
 
 
 from __future__ import division
-import matplotlib as mpl
-mpl.use('TkAgg')
-from Modules.MatrixOprations.contin_table import *
+# import matplotlib as mpl
+# mpl.use('TkAgg')
+from CAPUCHIN.Modules.MatrixOprations.contin_table import *
 #from Core.indep_repair import Repair
 import random
 #import tensorly as tl

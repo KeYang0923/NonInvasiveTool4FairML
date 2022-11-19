@@ -1,26 +1,26 @@
-from pylab import *
+# from pylab import *
 import scipy.stats as stats
-from  math import *
-from utils.read_data import read_from_csv
-from utils.util import get_distinct
-from  math import *
+from math import *
+from CAPUCHIN.utils.read_data import read_from_csv
+from CAPUCHIN.utils.util import get_distinct
+from math import *
 import functools
 import scipy.stats as stats
-matplotlib.use('TkAgg')
-from pylab import *
-matplotlib.use('TkAgg')
-from utils.read_data import read_from_csv
+# matplotlib.use('TkAgg')
+# from pylab import *
+# matplotlib.use('TkAgg')
+from CAPUCHIN.utils.read_data import read_from_csv
 from scipy.special import entr
 import time
 from scipy.special import entr
 import pandas as pd
 #from modules.statistics.hypothesis_test import *
 #import numpy_indexed as npi
-from utils.util import *
+from CAPUCHIN.utils.util import *
 import numba
 import os
 #import psycopg2
-from utils.read_data import *
+from CAPUCHIN.utils.read_data import *
 
 
 

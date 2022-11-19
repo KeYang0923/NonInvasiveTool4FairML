@@ -1,10 +1,10 @@
 
 
 import pandas as pd
-from utils.util import *
-from utils.read_data import read_from_csv
-from Modules.MatrixOprations.lowrank_decoms import *
-from Modules.InformationTheory.info_theo import *
+from CAPUCHIN.utils.util import *
+from CAPUCHIN.utils.read_data import read_from_csv
+from CAPUCHIN.Modules.MatrixOprations.lowrank_decoms import *
+from CAPUCHIN.Modules.InformationTheory.info_theo import *
 from numpy import linalg as LA
 from scipy.spatial import distance_matrix
 
