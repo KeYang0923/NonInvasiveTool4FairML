@@ -7,7 +7,7 @@ from joblib import load
 from sklearn.metrics import confusion_matrix, accuracy_score, roc_auc_score
 from TrainMLModels import read_json, generate_model_predictions, save_json, find_optimal_thres
 
-warnings.filterwarnings(action='ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore')
 
 def eval_predictions(y_true, y_pred, label_order=[0, 1], metrics=['AUC', 'ACC', 'ERR', 'FPR', 'FNR', 'PR', 'TPR', 'TNR', 'TP', 'FN', 'TN', 'FP', 'SR']):
 

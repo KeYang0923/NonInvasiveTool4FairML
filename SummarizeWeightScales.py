@@ -1,63 +1,60 @@
 import warnings
-import os
-from TrainMLModels import read_json, make_folder
+from TrainMLModels import read_json
 
+import pandas as pd
 import argparse
 from multiprocessing import Pool, cpu_count
-import pandas as pd
+import os
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings(action='ignore')
 
-
-def extract_evaluations(data_name, seeds, models, res_path='../intermediate/models/',
-               set_suffix='S_1', eval_path='eval/'):
+def extract_impact_weight_scales(data_name, seeds, models, res_path='../intermediate/models/',
+               set_suffix='S_1', eval_path='eval/', ):
 
     repo_dir = res_path.replace('intermediate/models/', '')
     eval_path = repo_dir + eval_path
-    make_folder(eval_path)
 
-    group_eval_metrics = ['AUC', 'ACC', 'SR', 'BalAcc']
-    overall_metrics = ['BalAcc', 'DI', 'EQDiff', 'AvgOddsDiff', 'SPDiff', 'FPRDiff', 'FNRDiff', 'ERRDiff']
-
-    scc_weights = ['scc', 'scc', 'scc', 'omn', 'kam']
-    scc_bases = ['one', 'kam', 'omn', 'one', 'one']
-
-    res_df = pd.DataFrame(columns=['data', 'model', 'seed', 'method', 'group', 'metric', 'value'])
     cur_dir = res_path + data_name + '/'
+    scc_weights = ['scc', 'scc', 'scc', 'omn']
+    scc_bases = ['one', 'kam', 'omn', 'one']
+
+    res_df = pd.DataFrame(columns=['data', 'model', 'seed', 'method', 'degree', 'BalAcc', 'SPDiff'])
+
     for model_i in models:
         if model_i == '':
             model_name = 'LR'
+            extra_weights = ['kam']
         if model_i == 'tr':
             model_name = 'TR'
-            scc_weights = scc_weights + ['cap']
-            scc_bases = scc_bases + ['one']
+            extra_weights = ['kam', 'cap']
+
         for seed in seeds:
-            # get multicc results
-            eval_mcc_name = '{}{}eval-{}-{}-{}.json'.format(cur_dir, model_i, seed, set_suffix, 'mcc')
-            if os.path.exists(eval_mcc_name):
-                eval_res = read_json(eval_mcc_name)
-                for mcc_i in ['MCC-MIN', 'MCC-W1', 'MCC-W2', 'SEP', 'ORIG']:
-                    for group in ['all', 'G0', 'G1']:
-                        base = [data_name, model_name, seed, mcc_i, group]
-                        for metric_i in group_eval_metrics:
-                            res_df.loc[res_df.shape[0]] = base + [metric_i, eval_res[mcc_i][group][metric_i]]
-                    for metric_i in overall_metrics:
-                        res_df.loc[res_df.shape[0]] = [data_name, model_name, seed, mcc_i, 'all'] + [metric_i, eval_res[mcc_i]['all'][metric_i]]
+            for reweigh_method, weight_base in zip(scc_weights, scc_bases):
+                degree_file = '{}{}degrees-{}-{}-{}.txt'.format(cur_dir, model_i, seed, reweigh_method, weight_base)
+                if os.path.exists(degree_file):
+                    f = open(degree_file, "r")
+                    while (True):
+                        line = f.readline()
+                        if not line:
+                            break
+                        cur_res = line.strip().replace('---', '').split(' ')
+                        res_df.loc[res_df.shape[0]] = [data_name, model_name, seed, reweigh_method.upper() + '-' + weight_base.upper(), float(cur_res[0]), float(cur_res[1]), float(cur_res[2])]
+                else:
+                    print('---> no ', degree_file)
+            # get the results from the methods without degrees
+            for reweigh_method in extra_weights:
+                weight_base = 'one'
+                eval_file = '{}{}eval-{}-{}-{}-{}.json'.format(cur_dir, model_i, seed, set_suffix, reweigh_method, weight_base)
+                if os.path.exists(eval_file):
+                    eval_res = read_json(eval_file)
 
-            # get single results
-            for scc_i, base_i in zip(scc_weights, scc_bases):
-                eval_scc_name = '{}{}eval-{}-{}-{}-{}.json'.format(cur_dir, model_i, seed, set_suffix, scc_i, base_i)
-                if os.path.exists(eval_scc_name):
-                    eval_res = read_json(eval_scc_name)
-                    method_name = scc_i.upper() + base_i.upper()
-                    for group in ['all', 'G0', 'G1']:
-                        base = [data_name, model_name, seed, method_name, group]
-                        for metric_i in group_eval_metrics:
-                            res_df.loc[res_df.shape[0]] = base + [metric_i, eval_res[scc_i.upper()][group][metric_i]]
-                    for metric_i in overall_metrics:
-                        res_df.loc[res_df.shape[0]] = [data_name, model_name, seed, method_name, 'all'] + [metric_i, eval_res[scc_i.upper()]['all'][metric_i]]
-
-    res_df.to_csv(eval_path+'res-{}.csv'.format(data_name), index=False)
+                    acc = eval_res[reweigh_method.upper()]['all']['BalAcc']
+                    sp = eval_res[reweigh_method.upper()]['all']['SPDiff']
+                    for degree_i in [x / 100 for x in range(1, 201)]:
+                        res_df.loc[res_df.shape[0]] = [data_name, model_name, seed, reweigh_method.upper() + '-' + weight_base.upper(), degree_i, acc, sp]
+                else:
+                    print('---> no ', eval_file)
+    res_df.to_csv(eval_path+'degree-{}.csv'.format(data_name), index=False)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Extract evaluation results")
@@ -106,6 +103,6 @@ if __name__ == '__main__':
         for data_name in datasets:
             tasks.append([data_name, seeds, models, res_path])
         with Pool(cpu_count()//2) as pool:
-            pool.starmap(extract_evaluations, tasks)
+            pool.starmap(extract_impact_weight_scales, tasks)
     else:
         raise ValueError('Do not support serial execution. Use "--run parallel"!')
