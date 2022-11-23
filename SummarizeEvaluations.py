@@ -43,20 +43,22 @@ def extract_evaluations(data_name, seeds, models, res_path='../intermediate/mode
                             res_df.loc[res_df.shape[0]] = base + [metric_i, eval_res[mcc_i][group][metric_i]]
                     for metric_i in overall_metrics:
                         res_df.loc[res_df.shape[0]] = [data_name, model_name, seed, mcc_i, 'all'] + [metric_i, eval_res[mcc_i]['all'][metric_i]]
-
+            else:
+                print('--> no', eval_scc_name)
             # get single results
             for scc_i, base_i in zip(scc_weights, scc_bases):
                 eval_scc_name = '{}{}eval-{}-{}-{}-{}.json'.format(cur_dir, model_i, seed, set_suffix, scc_i, base_i)
                 if os.path.exists(eval_scc_name):
                     eval_res = read_json(eval_scc_name)
-                    method_name = scc_i.upper() + base_i.upper()
+                    method_name = scc_i.upper() + '-'+ base_i.upper()
                     for group in ['all', 'G0', 'G1']:
                         base = [data_name, model_name, seed, method_name, group]
                         for metric_i in group_eval_metrics:
                             res_df.loc[res_df.shape[0]] = base + [metric_i, eval_res[scc_i.upper()][group][metric_i]]
                     for metric_i in overall_metrics:
                         res_df.loc[res_df.shape[0]] = [data_name, model_name, seed, method_name, 'all'] + [metric_i, eval_res[scc_i.upper()]['all'][metric_i]]
-
+                else:
+                    print('--> no', eval_scc_name)
     res_df.to_csv(eval_path+'res-{}.csv'.format(data_name), index=False)
 
 if __name__ == '__main__':

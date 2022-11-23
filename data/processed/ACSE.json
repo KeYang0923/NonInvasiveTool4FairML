@@ -2,45 +2,47 @@
   "target": "Y",
   "target_positive_value": "ESR",
   "sensitive_feature": "RACE",
-  "size": 100000,
+  "size": 250847,
   "n_features": 16,
   "continuous_features": [
-    "ESP",
-    "RELP",
     "AGEP",
-    "SCHL"
+    "SCHL",
+    "RELP",
+    "ESP"
   ],
   "categorical_features": [
+    "MAR",
+    "MIG",
+    "DEAR",
+    "ANC",
     "MIL",
     "CIT",
-    "DEAR",
-    "NATIVITY",
-    "SEX",
-    "MIG",
-    "ANC",
-    "MAR",
-    "DIS",
+    "DEYE",
     "DREM",
-    "DEYE"
+    "DIS",
+    "SEX",
+    "NATIVITY"
   ],
   "protected_group": [
     "Black"
   ],
+  "group_perc": 7.3,
+  "pos_perc": 39.3,
   "feature_name_mapping": {
-    "ESP": "X1",
-    "RELP": "X2",
-    "AGEP": "X3",
-    "SCHL": "X4",
-    "MIL": "X5",
-    "CIT": "X6",
+    "AGEP": "X1",
+    "SCHL": "X2",
+    "RELP": "X3",
+    "ESP": "X4",
+    "MAR": "X5",
+    "MIG": "X6",
     "DEAR": "X7",
-    "NATIVITY": "X8",
-    "SEX": "X9",
-    "MIG": "X10",
-    "ANC": "X11",
-    "MAR": "X12",
+    "ANC": "X8",
+    "MIL": "X9",
+    "CIT": "X10",
+    "DEYE": "X11",
+    "DREM": "X12",
     "DIS": "X13",
-    "DREM": "X14",
-    "DEYE": "X15"
+    "SEX": "X14",
+    "NATIVITY": "X15"
   }
 }

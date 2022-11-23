@@ -31,7 +31,7 @@ class Dataset():
         self.meta_info = {'target': label_col,
                           'target_positive_value': fav_value,
                           'sensitive_feature': sensi_col}
-    def preprocess(self, output_path, num_threshold=8, sample_activate_n=100000):
+    def preprocess(self, output_path, num_threshold=8, sample_activate_n=500000):
         df = self.df.dropna()
 
         if df.shape[0] > sample_activate_n:  # sample rows for efficiency
@@ -70,25 +70,30 @@ class Dataset():
         col_name_mapping = {col: 'X' + str(i + 1) for i, col in enumerate(num_atts + cat_atts)}
         cur_df.rename(columns=col_name_mapping, inplace=True)
 
+        group_df = cur_df.query('A==0')
+        pos_df = group_df.query('Y==1')
+
         self.meta_info.update({'size': cur_df.shape[0],
-                             'n_features': len(features) + 1,
-                             'continuous_features': num_atts,
-                             'categorical_features': cat_atts,
-                             'protected_group': protected_groups,
-                             'feature_name_mapping': col_name_mapping
+                                 'n_features': len(features) + 1,
+                                 'continuous_features': num_atts,
+                                 'categorical_features': cat_atts,
+                                 'protected_group': protected_groups,
+                                 'group_perc': round(group_df.shape[0]/cur_df.shape[0]*100, 1),
+                                 'pos_perc': round(pos_df.shape[0]/group_df.shape[0]*100, 1),
+                                 'feature_name_mapping': col_name_mapping
                              })
 
         output_df = cur_df[['X' + str(i) for i in range(1, len(features) + 1)] + ['Y', 'A']]
-        output_df.to_csv(output_path + '/' + self.name + '.csv', index=False)
-        print('--> Processed data is saved to ', output_path + '/' + self.name + '.csv\n')
+        output_df.to_csv(output_path + self.name + '.csv', index=False)
+        print('--> Processed data is saved to ', output_path + self.name + '.csv\n')
     def get_count(self, order_cols, place_holder='X1'):
         print(self.df[order_cols + [place_holder]].groupby(by=order_cols).count())
 
     def save_json(self, file_path, verbose=True):
-        with open(file_path + '/' + self.name + '.json', 'w') as json_file:
+        with open(file_path + self.name + '.json', 'w') as json_file:
             json.dump(self.meta_info, json_file, indent=2)
         if verbose:
-            print('--> Meta information is saved to ', file_path + '/' + self.name + '.json\n')
+            print('--> Meta information is saved to ', file_path + self.name + '.json\n')
 
 class Cardio(Dataset):
     # this dataset is from Kaggle https://www.kaggle.com/datasets/sulianova/cardiovascular-disease-dataset
@@ -103,7 +108,7 @@ class Cardio(Dataset):
         raw_df['bmi'] = raw_df['weight'] / (.01 * raw_df['height']) ** 2
         raw_df['age_in_years'] = raw_df['age'] / 365
 
-        raw_df['age_b'] = raw_df['age_in_years'].apply(lambda x: int(x >= 55))
+        raw_df['age_b'] = raw_df['age_in_years'].apply(lambda x: int(x >= 45))
         raw_df = raw_df[['bmi', 'ap_hi', 'ap_lo', 'gender', 'cholesterol', 'gluc', 'smoke', 'alco', 'active', 'age_b', 'cardio']]
         # categorical_columns = ['gender', 'cholesterol', 'gluc', 'smoke', 'alco', 'active']
         # numerical_columns = ['bmi', 'ap_hi', 'ap_lo']
@@ -113,7 +118,7 @@ class Cardio(Dataset):
         fav_meta = 'having cardio disease' #  for meta information
 
         sensi_col = 'age_b' # 0 for younger and 1 for older
-        sensi_col_mapping = {'age < 55': 0, 'age >= 55': 1} #  for meta information
+        sensi_col_mapping = {'age < 45': 0, 'age >= 45': 1} #  for meta information
         sensi_transform_flag = False # no need to transform as the original sensitive column is binary
 
         if name is not None:
@@ -124,19 +129,28 @@ class Cardio(Dataset):
 class LSAC(Dataset):
     # this dataset is from OminiFair
 
-    def __init__(self, name=None):
+    def __init__(self, name=None, path='../'):
         try:
-            raw_df = pd.read_csv('../data/lsac/lsac.csv') # the data is derived from running the above code
+            raw_df = pd.read_csv(path + 'data/lsac/lsac.csv') # the data is derived from running the above code
         except IOError as err:
             print("IOError: {}".format(err))
 
         def group_race(x):
-            if x == "White":
+            # if x == "White":
+            #     return 1.0
+            # else:
+            #     return 0.0
+            if x == "Black":
+                return 0.0
+            elif x == "White":
                 return 1.0
             else:
-                return 0.0
+                return -1
+
         raw_df['sex'] = raw_df['sex'].replace({'Female': 0.0, 'Male': 1.0})
         raw_df['race'] = raw_df['race'].apply(lambda x: group_race(x))
+        raw_df = raw_df[raw_df['race'] >= 0]
+
         raw_df['pass_bar'] = raw_df['pass_bar'].replace({'Passed': 1.0, 'Failed_or_not_attempted': 0.0})
         raw_df['isPartTime'] = raw_df['isPartTime'].replace({'Yes': 1.0, 'No': 0.0})
 
@@ -147,7 +161,7 @@ class LSAC(Dataset):
         fav_meta = 'Passed'  # for meta information
 
         sensi_col = 'race'
-        sensi_col_mapping = {'White': 1, 'Non-White': 0}
+        sensi_col_mapping = {'White': 1, 'Black': 0}
         sensi_transform_flag = False
 
         if name is not None:
@@ -159,21 +173,22 @@ class GMCredit(Dataset):
     # this dataset is from Kaggle competition and for classification task of predicting the probability that somebody will experience financial distress in the next two years.
     # We use the training variants in our experiments. See details at https://www.kaggle.com/competitions/GiveMeSomeCredit/overview
 
-    def __init__(self, name=None):
+    def __init__(self, name=None, path='../'):
         try:
-            raw_df = pd.read_csv('../data/credit/GiveMeSomeCredit_training.csv')
+            raw_df = pd.read_csv(path+'data/credit/GiveMeSomeCredit_training.csv')
 
         except IOError as err:
             print("IOError: {}".format(err))
 
         raw_df = raw_df[['RevolvingUtilizationOfUnsecuredLines', 'NumberOfTime30-59DaysPastDueNotWorse', 'DebtRatio', 'MonthlyIncome', 'NumberOfOpenCreditLinesAndLoans', 'NumberOfTimes90DaysLate', 'SeriousDlqin2yrs', 'age']]
-        raw_df['age'] = raw_df['age'].apply(lambda x: int(x < 65))
-        label_col = 'SeriousDlqin2yrs' # whether a loan is granted
+        raw_df['age'] = raw_df['age'].apply(lambda x: int(x >= 35))
+
+        label_col = 'SeriousDlqin2yrs' # presence of financial stress
         fav_transform = None  # no need to transform as the original target column is binary
-        fav_meta = 'A loan is granted'  # for meta information
+        fav_meta = 'serious delay in 2 years'  # for meta information
 
         sensi_col = 'age'
-        sensi_col_mapping = {'age < 65': 1, 'age >= 65': 0}
+        sensi_col_mapping = {'age >= 35': 1, 'age < 35': 0}
         sensi_transform_flag = False
 
         if name is not None:
@@ -301,7 +316,7 @@ class Bank(Dataset):
 
         raw_df = raw_df.dropna()
 
-        raw_df['age'] = raw_df['age'].apply(lambda x: int(x > 25))
+        raw_df['age'] = raw_df['age'].apply(lambda x: int(x > 30))
         raw_df = raw_df[categorical_columns+numerical_columns+extra_num_atts+['y']]
 
         label_col = 'y'
@@ -310,7 +325,7 @@ class Bank(Dataset):
 
 
         sensi_col = 'age'
-        sensi_col_mapping = {'age <= 25': 0, 'age > 25': 1}
+        sensi_col_mapping = {'age <= 30': 0, 'age > 30': 1}
         sensi_transform_flag = False
 
         if name is not None:
@@ -335,7 +350,7 @@ class ACSEmploy(Dataset):
         fav_meta = 'ESR'  # for meta information
 
         sensi_col = 'RACE'
-        sensi_col_mapping = {'Black': 0, 'Other': 1}
+        sensi_col_mapping = {'Black': 0, 'White': 1}
         sensi_transform_flag = False
 
         if name is not None:
@@ -355,11 +370,11 @@ class ACSPublicCoverage(Dataset):
 
 
         label_col = 'Y'
-        fav_transform = None
-        fav_meta = 'PUBCOV'  # for meta information
+        fav_transform = 0
+        fav_meta = 'Private Insurance'  # for meta information
 
         sensi_col = 'RACE'
-        sensi_col_mapping = {'Black': 0, 'Other': 1}
+        sensi_col_mapping = {'Black': 0, 'White': 1}
         sensi_transform_flag = False
 
         if name is not None:
@@ -382,7 +397,7 @@ class ACSHealthInsurance(Dataset):
         fav_meta = 'HINS2'  # for meta information
 
         sensi_col = 'RACE'
-        sensi_col_mapping = {'Black': 0, 'Other': 1}
+        sensi_col_mapping = {'Black': 0, 'White': 1}
         sensi_transform_flag = False
 
         if name is not None:
@@ -402,11 +417,11 @@ class ACSTravelTime(Dataset):
 
 
         label_col = 'Y'
-        fav_transform = None
-        fav_meta = 'JWMNP > 20'  # for meta information
+        fav_transform = 0
+        fav_meta = 'JWMNP < 20'  # for meta information
 
         sensi_col = 'RACE'
-        sensi_col_mapping = {'Black': 0, 'Other': 1}
+        sensi_col_mapping = {'Black': 0, 'White': 1}
         sensi_transform_flag = False
 
         if name is not None:
@@ -426,11 +441,11 @@ class ACSMobility(Dataset):
 
 
         label_col = 'Y'
-        fav_transform = None
-        fav_meta = 'MIG'  # for meta information
+        fav_transform = 0 # reverse the label
+        fav_meta = 'not MIG'  # for meta information
 
         sensi_col = 'RACE'
-        sensi_col_mapping = {'Black': 0, 'Other': 1}
+        sensi_col_mapping = {'Black': 0, 'White': 1}
         sensi_transform_flag = False
 
         if name is not None:
@@ -455,7 +470,7 @@ class ACSIncomePovertyRatio(Dataset):
         fav_meta = 'POVPIP < 250'  # for meta information
 
         sensi_col = 'RACE'
-        sensi_col_mapping = {'Black': 0, 'Other': 1}
+        sensi_col_mapping = {'Black': 0, 'White': 1}
         sensi_transform_flag = False
 
         if name is not None:
@@ -467,47 +482,47 @@ class ACSIncomePovertyRatio(Dataset):
 if __name__ == '__main__':
     # initiate objects for real datasets and proprocess it with meta information extracted
     repo_dir = os.path.dirname(os.path.abspath(__file__))
-    save_path = repo_dir + '/data/processed'
-    # cardio = Cardio()
+    save_path = repo_dir + '/data/processed/'
+    # cardio = Cardio(path=repo_dir+'/')
     # cardio.preprocess(save_path)
     # cardio.save_json(save_path)
-
-    lsac = LSAC()
-    lsac.preprocess(save_path)
-    lsac.save_json(save_path)
-
-    # gmcredit = GMCredit()
+    #
+    # lsac = LSAC(path=repo_dir+'/')
+    # lsac.preprocess(save_path)
+    # lsac.save_json(save_path)
+    #
+    # gmcredit = GMCredit(path=repo_dir+'/')
     # gmcredit.preprocess(save_path)
     # gmcredit.save_json(save_path)
 
-    # meps = MEPS()
+    # meps = MEPS(path=repo_dir+'/')
     # meps.preprocess(save_path)
     # meps.save_json(save_path)
 
-    # bank = Bank()
+    # bank = Bank(path=repo_dir+'/')
     # bank.preprocess(save_path)
     # bank.save_json(save_path)
 
-    # acse = ACSEmploy()
+    # acse = ACSEmploy(path=repo_dir+'/')
     # acse.preprocess(save_path)
     # acse.save_json(save_path)
 
-    # acsp = ACSPublicCoverage()
+    # acsp = ACSPublicCoverage(path=repo_dir+'/')
     # acsp.preprocess(save_path)
     # acsp.save_json(save_path)
 
-    # acsh = ACSHealthInsurance()
+    # acsh = ACSHealthInsurance(path=repo_dir+'/')
     # acsh.preprocess(save_path)
     # acsh.save_json(save_path)
 
-    # acst = ACSTravelTime()
+    # acst = ACSTravelTime(path=repo_dir+'/')
     # acst.preprocess(save_path)
     # acst.save_json(save_path)
 
-    # acsm = ACSMobility()
+    # acsm = ACSMobility(path=repo_dir+'/')
     # acsm.preprocess(save_path)
     # acsm.save_json(save_path)
 
-    # acsi = ACSIncomePovertyRatio()
+    # acsi = ACSIncomePovertyRatio(path=repo_dir+'/')
     # acsi.preprocess(save_path)
     # acsi.save_json(save_path)

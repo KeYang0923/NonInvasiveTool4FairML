@@ -202,6 +202,8 @@ def eval_predicitons(data_name, seed, model, method, res_path='../intermediate/m
                 eval_res[reweight.upper()] = eval_settings(test_df, sensi_col, 'Y_pred')
 
                 save_json(eval_res, '{}{}eval-{}-{}-{}-{}.json'.format(cur_dir, model, seed, set_suffix, reweight, weight_base))
+            else:
+                print('-->', test_df)
         # get original model
     else:
         raise ValueError('Input "method" is not supported. CHOOSE FROM [mcc, single].')

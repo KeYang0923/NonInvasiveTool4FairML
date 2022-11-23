@@ -2,35 +2,37 @@
   "target": "pass_bar",
   "target_positive_value": "Passed",
   "sensitive_feature": "race",
-  "size": 27472,
+  "size": 24479,
   "n_features": 11,
   "continuous_features": [
     "zgpa",
+    "lsat",
     "ugpa",
     "DOB_yr",
     "zfygpa",
-    "lsat",
     "weighted_lsat_ugpa"
   ],
   "categorical_features": [
-    "family_income",
+    "isPartTime",
     "sex",
     "cluster_tier",
-    "isPartTime"
+    "family_income"
   ],
   "protected_group": [
-    "Non-White"
+    "Black"
   ],
+  "group_perc": 7.7,
+  "pos_perc": 56.6,
   "feature_name_mapping": {
     "zgpa": "X1",
-    "ugpa": "X2",
-    "DOB_yr": "X3",
-    "zfygpa": "X4",
-    "lsat": "X5",
+    "lsat": "X2",
+    "ugpa": "X3",
+    "DOB_yr": "X4",
+    "zfygpa": "X5",
     "weighted_lsat_ugpa": "X6",
-    "family_income": "X7",
+    "isPartTime": "X7",
     "sex": "X8",
     "cluster_tier": "X9",
-    "isPartTime": "X10"
+    "family_income": "X10"
   }
 }

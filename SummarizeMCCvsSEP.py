@@ -10,26 +10,26 @@ from EvaluateModels import assign_pred_mcc_min, assign_pred_mcc_weight, assign_p
 warnings.filterwarnings('ignore')
 
 def extract_mcc_vs_sep(data_name, seeds, models, res_path='../intermediate/models/',
-                       method='mcc', eval_path='eval/',
+                       eval_path='eval/',
                        set_suffix = 'S_1', y_col='Y', sensi_col='A', n_groups=2):
     repo_dir = res_path.replace('intermediate/models/', '')
     eval_path = repo_dir + eval_path
 
     cur_dir = res_path + data_name + '/'
-    res_df = pd.DataFrame(columns=['data', 'model', 'seed', 'case', 'case_n', 'mcc_weight', 'correct_perc'])
+    res_df = pd.DataFrame(columns=['data', 'seed', 'test_n', 'group_n', 'case', 'case_n', 'model', 'method', 'correct_n'])
 
     vio_cols = ['vio_G{}_L{}'.format(group_i, label_i) for group_i in range(n_groups) for label_i in range(2)]
     sep_pred_col = 'Y_pred_{}'.format(sensi_col)
 
     for seed in seeds:
+        vio_test_df = pd.read_csv(cur_dir + '-'.join(['test_vio', str(seed)]) + '.csv')
         for model in models:
+            # for mcc
             if model == 'lr':
                 model = ''
-                test_df = pd.read_csv(cur_dir + '-'.join(['test_vio', str(seed)]) + '.csv')
+                test_df = vio_test_df.copy()
             else: # model == 'tr':
                 test_df = pd.read_csv(cur_dir + '-'.join(['test', str(seed), 'bin']) + '.csv')
-
-                vio_test_df = pd.read_csv(cur_dir + '-'.join(['test_vio', str(seed)]) + '.csv')
                 test_df[vio_cols] = vio_test_df[vio_cols]
 
             if set_suffix == 'S_1':
@@ -40,9 +40,9 @@ def extract_mcc_vs_sep(data_name, seeds, models, res_path='../intermediate/model
             test_data = test_df[features]
 
             model_file = '{}{}model-{}-{}.joblib'.format(cur_dir, model, seed, set_suffix)
-
+            key_groups = []
             if os.path.exists(model_file):
-                thres_all = read_json('{}{}evalthres-{}-{}-{}.json'.format(cur_dir, model, seed, set_suffix, method))
+                thres_all = read_json('{}{}evalthres-{}-{}-{}.json'.format(cur_dir, model, seed, set_suffix, 'mcc'))
 
                 for group_suffix in [None, 'G0', 'G1']:
                     if group_suffix is None:
@@ -68,31 +68,94 @@ def extract_mcc_vs_sep(data_name, seeds, models, res_path='../intermediate/model
                 test_df['Y_pred_min'] = test_df['Y_pred_min'].apply(lambda x: int(x > min_opt_thres))
                 test_df['Y_pred_w1'] = test_df['Y_pred_w1'].apply(lambda x: int(x > w1_opt_thres))
                 test_df['Y_pred_w2'] = test_df['Y_pred_w2'].apply(lambda x: int(x > w2_opt_thres))
-                test_df[sep_pred_col] = test_df['Y_pred_A'].apply(lambda x: int(x > a_opt_thres))
+                test_df[sep_pred_col] = test_df[sep_pred_col].apply(lambda x: int(x > a_opt_thres))
 
-                test_df['Y_pred'] = test_df['Y_pred'].apply(lambda x: int(x > orig_opt_thres['thres']))
+                test_df['Y_pred'] = test_df['Y_pred'].apply(lambda x: int(x > orig_opt_thres))
 
-                test_df.to_csv('{}{}test-{}-{}-{}.csv'.format(cur_dir, model, seed, set_suffix, method), index=False)
+                test_df.to_csv('{}{}test-{}-{}-{}.csv'.format(cur_dir, model, seed, set_suffix, 'mcc'), index=False)
+
                 if model == '':
                     model_name = 'LR'
                 else:
                     model_name = 'TR'
+
+
                 # compute the two cases:
                 for group_i in range(n_groups):
                     err_df_a = test_df.query('Y != {} and {}=={}'.format(sep_pred_col, sensi_col, group_i))
-                    group_sim_other = err_df_a.query('vio_G{}_L0 > vio_G{}_L0 and vio_G{}_L1 > vio_G{}_L1'.format(group_i, abs(group_i-1), group_i, abs(group_i-1)))
+                    key_groups.append(list(err_df_a.index))
+                    # group_sim_other = err_df_a.query('vio_G{}_L0 > vio_G{}_L0 and vio_G{}_L1 > vio_G{}_L1'.format(group_i, abs(group_i-1), group_i, abs(group_i-1)))
 
-                    for pred_col_i, weight_set in zip(['Y_pred_min', 'Y_pred_w1', 'Y_pred_w2', 'Y_pred'], ['MIN', 'W1', 'W2', 'ORIG']):
-                        pred_plus_df = group_sim_other.query('{} == Y'.format(pred_col_i))
-                        ratio = round(pred_plus_df.shape[0]/err_df_a.shape[0],3)
-                        res_df.loc[res_df.shape[0]] = [data_name, model_name, seed, '{} to {}'.format(group_i, abs(group_i-1)), err_df_a.shape[0], weight_set, ratio]
+                    # group_df = test_df.query('{}=={}'.format(sensi_col, group_i))
+
+                    similarity_query = 'vio_G{}_L0 > vio_G{}_L0 and vio_G{}_L1 > vio_G{}_L1'.format(group_i, abs(group_i - 1), group_i, abs(group_i - 1))
+
+                    group_sim_other = err_df_a.query(similarity_query)
+                    # print(group_sim_other.shape[0])
+                    base_row = [data_name, seed, test_df.shape[0], err_df_a.shape[0], '{} to {}'.format(group_i, abs(group_i - 1)), group_sim_other.shape[0]]
+
+                    for pred_col_i, weight_set in zip(['Y_pred_min', 'Y_pred_w1', 'Y_pred_w2', 'Y_pred', 'Y_pred_A'],
+                                                      ['MCC-MIN', 'MCC-W1', 'MCC-W2', 'ORIG', 'SEP']):
+                        correct_df = group_sim_other.query('{} == Y'.format(pred_col_i))
+                        res_df.loc[res_df.shape[0]] = base_row + [model_name, weight_set, correct_df.shape[0]]
+                        # print(correct_df.shape[0])
+
+                    # err_df_a = group_sim_other.query('Y != {}'.format(sep_pred_col))
+                    # for pred_col_i, weight_set in zip(['Y_pred_min', 'Y_pred_w1', 'Y_pred_w2', 'Y_pred'], ['MIN', 'W1', 'W2', 'ORIG']):
+                    #     pred_plus_df = group_sim_other.query('{} == Y'.format(pred_col_i))
+                    #     ratio = round(pred_plus_df.shape[0]/err_df_a.shape[0],3)
+                    #     res_df.loc[res_df.shape[0]] = [data_name, model_name, seed, '{} to {}'.format(group_i, abs(group_i-1)), err_df_a.shape[0], weight_set, ratio]
             else:
                 print('--> no', model_file)
 
-    res_df.to_csv('{}{}-{}.csv'.format(eval_path, method, data_name), index=False)
+            # for scc cases
+            weights = ['scc', 'scc', 'scc', 'omn', 'kam']
+            bases = ['one', 'kam', 'omn', 'one', 'one']
+
+            if model == 'tr':
+                weights = weights + ['cap']
+                bases = bases + ['one']
+
+            for reweight, weight_base in zip(weights, bases):
+                test_file = '{}{}test-{}-{}-{}-{}.csv'.format(cur_dir, model, seed, set_suffix, reweight, weight_base)
+
+                if os.path.exists(test_file):
+                    test_df = pd.read_csv(test_file)
+                    test_df[vio_cols] = vio_test_df[vio_cols]
+
+
+                    if model == '':
+                        model_name = 'LR'
+                    else:
+                        model_name = 'TR'
+
+                    # compute the two cases:
+                    if len(key_groups) == 2:
+                        for group_i in range(n_groups):
+                            err_df_a = test_df.iloc[key_groups[group_i], :]
+                            similarity_query = 'vio_G{}_L0 > vio_G{}_L0 and vio_G{}_L1 > vio_G{}_L1'.format(group_i,
+                                                                                                            abs(group_i - 1),
+                                                                                                            group_i,
+                                                                                                            abs(group_i - 1))
+
+                            group_sim_other = err_df_a.query(similarity_query)
+                            # group_sim_other = group_df.query(similarity_query)
+                            # group_sim_other = cur_mis.query(similarity_query)
+
+                            base_row = [data_name, seed, test_df.shape[0], err_df_a.shape[0],
+                                        '{} to {}'.format(group_i, abs(group_i - 1)), group_sim_other.shape[0]]
+
+                            correct_df = group_sim_other.query('Y_pred == Y')
+
+                            res_df.loc[res_df.shape[0]] = base_row + [model_name, reweight.upper()+'-'+weight_base.upper(), correct_df.shape[0]]
+                else:
+                    print('--> no', test_file)
+
+    res_df.to_csv('{}{}-{}.csv'.format(eval_path, 'sim', data_name), index=False)
+    print('similar res is saved at', '{}{}-{}.csv'.format(eval_path, 'sim', data_name))
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Extract evaluation results")
+    parser = argparse.ArgumentParser(description="Extract evaluation results for MCC vs SEP")
     parser.add_argument("--run", type=str, default='parallel',
                         help="setting of 'parallel' for system evaluation or 'serial' execution for unit test.")
     parser.add_argument("--data", type=str, default='all',

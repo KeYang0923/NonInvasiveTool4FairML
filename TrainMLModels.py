@@ -163,72 +163,72 @@ def LR_trainer(data_name, seed, sensi_col_in_training=True, res_path='../interme
 
     train_df, validate_df, test_df = learner.split(df, seed)
 
-    if sensi_col_in_training:
-        features = ['X{}'.format(i) for i in range(1, n_features)] + ['A']
-    else:
-        features = ['X{}'.format(i) for i in range(1, n_features)]
+    # if sensi_col_in_training:
+    #     features = ['X{}'.format(i) for i in range(1, n_features)] + ['A']
+    # else:
+    #     features = ['X{}'.format(i) for i in range(1, n_features)]
 
 
-    train_data = train_df[features]
-    Y_train = np.array(train_df[y_col])
-
-    val_data = validate_df[features]
-    Y_val = np.array(validate_df[y_col])
-
-    model = learner.fit(train_data, Y_train, features, seed)
-
-    # for optimal threshold selection
-    validate_df['Y'] = Y_val
-    validate_df['Y_pred_scores'] = generate_model_predictions(model, val_data)
-
+    # train_data = train_df[features]
+    # Y_train = np.array(train_df[y_col])
+    #
+    # val_data = validate_df[features]
+    # Y_val = np.array(validate_df[y_col])
+    #
+    # model = learner.fit(train_data, Y_train, features, seed)
+    #
+    # # for optimal threshold selection
+    # validate_df['Y'] = Y_val
+    # validate_df['Y_pred_scores'] = generate_model_predictions(model, val_data)
+    #
     set_suffix = 'S_{}'.format(sensi_col_in_training)
-
-    dump(model, cur_dir + '-'.join(['model', str(seed), set_suffix]) + '.joblib')
+    #
+    # dump(model, cur_dir + '-'.join(['model', str(seed), set_suffix]) + '.joblib')
     # validate_df[['Y', 'Y_pred_scores']].to_csv(cur_dir + '-'.join(['y_val', str(seed), set_suffix]) + '.csv', index=False)
 
-    train_df.to_csv(cur_dir + '-'.join(['train', str(seed), set_suffix]) + '.csv') # keep index for sanity check of random splits
-    validate_df.to_csv(cur_dir + '-'.join(['val', str(seed), set_suffix]) + '.csv', index=False)
+    # train_df.to_csv(cur_dir + '-'.join(['train', str(seed), set_suffix]) + '.csv') # keep index for sanity check of random splits
+    # validate_df.to_csv(cur_dir + '-'.join(['val', str(seed), set_suffix]) + '.csv', index=False)
     test_df.to_csv(cur_dir + '-'.join(['test', str(seed), set_suffix]) + '.csv', index=False)
 
     # optimize threshold first
-    opt_thres = find_optimal_thres(validate_df, opt_obj='BalAcc')
-    par_dict = {'thres': opt_thres['thres'], 'BalAcc': opt_thres['BalAcc']}
-
-    # train group-level models for MultiCC
-    for group_i in range(n_groups):
-        group_train_df = train_df[train_df[sensi_col] == group_i].copy()
-        group_val_df = validate_df[validate_df[sensi_col] == group_i].copy()
-
-        group_train_data = group_train_df[features]
-        group_Y_train = np.array(group_train_df[y_col])
-
-        group_val_data = group_val_df[features]
-        group_Y_val = np.array(group_val_df[y_col])
-
-        group_model = learner.fit(group_train_data, group_Y_train, features, seed)
-
-        # for optimal threshold selection
-        group_val_df['Y'] = group_Y_val
-        group_val_df['Y_pred_scores'] = generate_model_predictions(group_model, group_val_data)
-
-        group_opt_thres = find_optimal_thres(group_val_df, opt_obj='BalAcc')
-        par_dict.update({'thres_g{}'.format(group_i): group_opt_thres['thres'], 'BalAcc_g{}'.format(group_i): group_opt_thres['BalAcc']})
-
-        dump(group_model, cur_dir + '-'.join(['model', str(seed), 'G' + str(group_i), set_suffix]) + '.joblib')
-        # group_val_df[['Y', 'Y_pred_scores']].to_csv(cur_dir + '-'.join(['y_val', str(seed), 'G' + str(group_i), set_suffix]) + '.csv', index=False)
-
-    end = timeit.default_timer()
-    time = end - start
-    save_json({'time': time}, '{}mltime-{}.json'.format(cur_dir, seed))
-
-    save_json(par_dict, '{}thres-{}.json'.format(cur_dir, seed))
-
-    if verbose:
-        Y_train_pred = generate_model_predictions(model, train_data, opt_thres=0.5)
-        score_train = learner.score(Y_train, Y_train_pred)
-        print('---' * 8, data_name, seed, '---' * 8)
-        print(learner.scoring, "on train data: ", score_train)
-        print('---' * 10, '\n')
+    # opt_thres = find_optimal_thres(validate_df, opt_obj='BalAcc')
+    # par_dict = {'thres': opt_thres['thres'], 'BalAcc': opt_thres['BalAcc']}
+    #
+    # # train group-level models for MultiCC
+    # for group_i in range(n_groups):
+    #     group_train_df = train_df[train_df[sensi_col] == group_i].copy()
+    #     group_val_df = validate_df[validate_df[sensi_col] == group_i].copy()
+    #
+    #     group_train_data = group_train_df[features]
+    #     group_Y_train = np.array(group_train_df[y_col])
+    #
+    #     group_val_data = group_val_df[features]
+    #     group_Y_val = np.array(group_val_df[y_col])
+    #
+    #     group_model = learner.fit(group_train_data, group_Y_train, features, seed)
+    #
+    #     # for optimal threshold selection
+    #     group_val_df['Y'] = group_Y_val
+    #     group_val_df['Y_pred_scores'] = generate_model_predictions(group_model, group_val_data)
+    #
+    #     group_opt_thres = find_optimal_thres(group_val_df, opt_obj='BalAcc')
+    #     par_dict.update({'thres_g{}'.format(group_i): group_opt_thres['thres'], 'BalAcc_g{}'.format(group_i): group_opt_thres['BalAcc']})
+    #
+    #     dump(group_model, cur_dir + '-'.join(['model', str(seed), 'G' + str(group_i), set_suffix]) + '.joblib')
+    #     # group_val_df[['Y', 'Y_pred_scores']].to_csv(cur_dir + '-'.join(['y_val', str(seed), 'G' + str(group_i), set_suffix]) + '.csv', index=False)
+    #
+    # end = timeit.default_timer()
+    # time = end - start
+    # save_json({'time': time}, '{}mltime-{}.json'.format(cur_dir, seed))
+    #
+    # save_json(par_dict, '{}thres-{}.json'.format(cur_dir, seed))
+    #
+    # if verbose:
+    #     Y_train_pred = generate_model_predictions(model, train_data, opt_thres=0.5)
+    #     score_train = learner.score(Y_train, Y_train_pred)
+    #     print('---' * 8, data_name, seed, '---' * 8)
+    #     print(learner.scoring, "on train data: ", score_train)
+    #     print('---' * 10, '\n')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train LR models on original data")

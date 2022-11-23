@@ -175,7 +175,8 @@ if __name__ == '__main__':
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
-    datasets = ['lsac', 'cardio', 'bank', 'meps16', 'credit', 'ACSE', 'ACSP', 'ACSH', 'ACSM', 'ACSI']
+    datasets = ['ACSE', 'ACSP', 'ACSH', 'ACSM', 'ACSI']
+    # datasets = ['lsac', 'cardio', 'bank', 'meps16', 'credit', 'ACSE', 'ACSP', 'ACSH', 'ACSM', 'ACSI']
     seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe,
              0xdeadbeef, 0xbeefcafe]
 

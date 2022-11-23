@@ -1,27 +1,29 @@
 {
   "target": "SeriousDlqin2yrs",
-  "target_positive_value": "A loan is granted",
+  "target_positive_value": "serious delay in 2 years",
   "sensitive_feature": "age",
-  "size": 100000,
+  "size": 120269,
   "n_features": 7,
   "continuous_features": [
+    "MonthlyIncome",
+    "NumberOfTimes90DaysLate",
+    "DebtRatio",
     "NumberOfTime30-59DaysPastDueNotWorse",
     "RevolvingUtilizationOfUnsecuredLines",
-    "MonthlyIncome",
-    "DebtRatio",
-    "NumberOfTimes90DaysLate",
     "NumberOfOpenCreditLinesAndLoans"
   ],
   "categorical_features": [],
   "protected_group": [
-    "age >= 65"
+    "age < 35"
   ],
+  "group_perc": 13.7,
+  "pos_perc": 10.7,
   "feature_name_mapping": {
-    "NumberOfTime30-59DaysPastDueNotWorse": "X1",
-    "RevolvingUtilizationOfUnsecuredLines": "X2",
-    "MonthlyIncome": "X3",
-    "DebtRatio": "X4",
-    "NumberOfTimes90DaysLate": "X5",
+    "MonthlyIncome": "X1",
+    "NumberOfTimes90DaysLate": "X2",
+    "DebtRatio": "X3",
+    "NumberOfTime30-59DaysPastDueNotWorse": "X4",
+    "RevolvingUtilizationOfUnsecuredLines": "X5",
     "NumberOfOpenCreditLinesAndLoans": "X6"
   }
 }

@@ -5,30 +5,32 @@
   "size": 30488,
   "n_features": 10,
   "continuous_features": [
-    "month",
+    "duration",
     "job",
-    "duration"
+    "month"
   ],
   "categorical_features": [
+    "loan",
+    "education",
     "housing",
     "marital",
     "day_of_week",
-    "loan",
-    "education",
     "contact"
   ],
   "protected_group": [
-    "age <= 25"
+    "age <= 30"
   ],
+  "group_perc": 20.3,
+  "pos_perc": 15.7,
   "feature_name_mapping": {
-    "month": "X1",
+    "duration": "X1",
     "job": "X2",
-    "duration": "X3",
-    "housing": "X4",
-    "marital": "X5",
-    "day_of_week": "X6",
-    "loan": "X7",
-    "education": "X8",
+    "month": "X3",
+    "loan": "X4",
+    "education": "X5",
+    "housing": "X6",
+    "marital": "X7",
+    "day_of_week": "X8",
     "contact": "X9"
   }
 }

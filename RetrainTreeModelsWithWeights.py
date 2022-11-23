@@ -171,7 +171,7 @@ def retrain_XGB_weights(data_name, seed, reweigh_method, weight_base, input_degr
                         best_threshold = cur_thresh
                         best_fair = metric
 
-                # print('--- degree high {} low {} mid {} acc {} sp {}---'.format(high, low, mid, acc, metric))
+                print('--- degree high {} low {} mid {} acc {} sp {}---'.format(high, low, mid, acc, metric))
 
     elif reweigh_method == 'scc':
         if input_degree is not None: # user-specified intervention degree

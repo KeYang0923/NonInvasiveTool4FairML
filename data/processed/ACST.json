@@ -1,46 +1,48 @@
 {
   "target": "Y",
-  "target_positive_value": "JWMNP > 20",
+  "target_positive_value": "JWMNP < 20",
   "sensitive_feature": "RACE",
-  "size": 100000,
+  "size": 113622,
   "n_features": 16,
   "continuous_features": [
-    "OCCP",
-    "POVPIP",
     "AGEP",
     "ESP",
-    "POWPUMA",
     "SCHL",
-    "JWTR",
+    "POWPUMA",
+    "OCCP",
     "RELP",
-    "PUMA"
+    "PUMA",
+    "POVPIP",
+    "JWTR"
   ],
   "categorical_features": [
+    "DIS",
+    "CIT",
     "MAR",
     "SEX",
-    "DIS",
-    "ST",
     "MIG",
-    "CIT"
+    "ST"
   ],
   "protected_group": [
     "Black"
   ],
+  "group_perc": 6.3,
+  "pos_perc": 45.3,
   "feature_name_mapping": {
-    "OCCP": "X1",
-    "POVPIP": "X2",
-    "AGEP": "X3",
-    "ESP": "X4",
-    "POWPUMA": "X5",
-    "SCHL": "X6",
-    "JWTR": "X7",
-    "RELP": "X8",
-    "PUMA": "X9",
-    "MAR": "X10",
-    "SEX": "X11",
-    "DIS": "X12",
-    "ST": "X13",
+    "AGEP": "X1",
+    "ESP": "X2",
+    "SCHL": "X3",
+    "POWPUMA": "X4",
+    "OCCP": "X5",
+    "RELP": "X6",
+    "PUMA": "X7",
+    "POVPIP": "X8",
+    "JWTR": "X9",
+    "DIS": "X10",
+    "CIT": "X11",
+    "MAR": "X12",
+    "SEX": "X13",
     "MIG": "X14",
-    "CIT": "X15"
+    "ST": "X15"
   }
 }
