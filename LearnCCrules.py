@@ -5,25 +5,13 @@ import timeit
 import argparse
 from multiprocessing import Pool, cpu_count
 import pandas as pd
-import os, json
+import os
 from sklearn.neighbors import KernelDensity
 import prose.datainsights as di
-
+from PrepareData import read_json, save_json
 
 warnings.filterwarnings('ignore')
 
-def read_json(file_name_with_path):
-    if os.path.isfile(file_name_with_path):
-        with open(file_name_with_path) as f:
-            res = json.load(f)
-        return res
-    else:
-        raise ValueError('Not exist', file_name_with_path)
-def save_json(input_dict, file_path_with_name, verbose=False):
-    with open(file_path_with_name, 'w') as json_file:
-        json.dump(input_dict, json_file, indent=2)
-    if verbose:
-        print('--> Dict is saved to ', file_path_with_name + '\n')
 def combine_violation(x):
     idx_map = {'00': 0, '01': 1, '10': 2, '11': 3}
     cur = '{}{}'.format(int(x.iloc[0]), int(x.iloc[1]))
@@ -33,17 +21,17 @@ def combine_violation(x):
 def learn_cc_models(data_name, seed, dense_kernal='guassian',
                     res_path='../intermediate/models/',
                     data_path='data/processed/',
-                    set_suffix='S_1',
                     n_groups=2, n_labels=2, sensi_col='A', y_col='Y',
                     dense_n=0.2, dense_h=0.1, algorithm='auto'):
     start = timeit.default_timer()
     repo_dir = res_path.replace('intermediate/models/', '')
     cur_dir = res_path + data_name + '/'
 
-    train_df = pd.read_csv(cur_dir + '-'.join(['train', str(seed), set_suffix]) + '.csv')
-    val_df = pd.read_csv(cur_dir + '-'.join(['val', str(seed), set_suffix]) + '.csv')
-    test_df = pd.read_csv(cur_dir + '-'.join(['test', str(seed), set_suffix]) + '.csv')
-    meta_info = read_json(repo_dir + '/'+ data_path + data_name + '.json')
+    train_df = pd.read_csv('{}train-{}.csv'.format(cur_dir, seed))
+    val_df = pd.read_csv('{}val-{}.csv'.format(cur_dir, seed))
+    test_df = pd.read_csv('{}test-{}.csv'.format(cur_dir, seed))
+
+    meta_info = read_json('{}/{}{}.json'.format(repo_dir, data_path, data_name))
     n_cond_features = len(meta_info['continuous_features'])
 
     cc_cols = ['X{}'.format(i) for i in range(1, n_cond_features+1)]
@@ -79,12 +67,13 @@ def learn_cc_models(data_name, seed, dense_kernal='guassian',
             test_df['vio_G{}_L{}'.format(group_i, label_i)] = test_cc_res.row_wise_violation_summary['violation']
     end = timeit.default_timer()
     time = end - start
-    save_json({'time': time}, '{}cctime-{}.json'.format(cur_dir, seed))
+    save_json({'time': time}, '{}time-cc-{}.json'.format(cur_dir, seed))
 
     train_df['vio_cc'] = train_df[[sensi_col, y_col, 'vio_G0_L0', 'vio_G0_L1', 'vio_G1_L0', 'vio_G1_L1']].apply(lambda x: combine_violation(x), axis=1)
-    train_df.to_csv(cur_dir + '-'.join(['train_vio', str(seed)]) + '.csv', index=False)
-    val_df.to_csv(cur_dir+'-'.join(['val_vio', str(seed)])+'.csv', index=False)
-    test_df.to_csv(cur_dir+'-'.join(['test_vio', str(seed)])+'.csv', index=False)
+
+    train_df.to_csv('{}train-cc-{}.csv'.format(cur_dir, seed), index=False)
+    val_df.to_csv('{}val-cc-{}.csv'.format(cur_dir, seed), index=False)
+    test_df.to_csv('{}test-cc-{}.csv'.format(cur_dir, seed), index=False)
 
 
 if __name__ == '__main__':
@@ -93,29 +82,40 @@ if __name__ == '__main__':
     parser.add_argument("--run", type=str, default='parallel',
                         help="setting of 'parallel' for system evaluation or 'serial' execution for unit test.")
     # parameters for running over smaller number of datasets and few number of executions
-    parser.add_argument("--set_n", type=int, default=10,
-                        help="number of datasets over which the script is running. Default is 10 for all the datasets.")
-    parser.add_argument("--exec_n", type=int, default=20,
+    parser.add_argument("--data", type=str, default='all',
+                        help="name of datasets over which the script is running. Default is for all the datasets.")
+    parser.add_argument("--set_n", type=int, default=None,
+                        help="number of datasets over which the script is running. Default is 10.")
+    parser.add_argument("--exec_n", type=int, default=1,
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
-    datasets = ['lsac', 'cardio', 'bank', 'meps16', 'credit', 'ACSE', 'ACSP', 'ACSH', 'ACSM', 'ACSI']
+    datasets = ['meps16', 'lsac', 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
+
     seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe,
              0xdeadbeef, 0xbeefcafe]
 
-    if args.set_n is None:
-        raise ValueError(
-            'The input "set_n" is requried. Use "--set_n 1" for running over a single dataset.')
-    elif type(args.set_n) == str:
-        raise ValueError(
-            'The input "set_n" requires integer. Use "--set_n 1" for running over a single dataset.')
+    if args.data == 'all':
+        pass
+    elif args.data in datasets:
+        datasets = [args.data]
     else:
-        n_datasets = int(args.set_n)
-        if n_datasets == -1:
-            datasets = datasets[n_datasets:]
-        else:
-            datasets = datasets[:n_datasets]
+        raise ValueError('The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
 
+
+    if args.set_n is not None:
+        if type(args.set_n) == str:
+            raise ValueError(
+                'The input "set_n" requires integer. Use "--set_n 1" for running over a single dataset.')
+        else:
+            n_datasets = int(args.set_n)
+            if n_datasets < 0:
+                datasets = datasets[n_datasets:]
+            elif n_datasets > 0:
+                datasets = datasets[:n_datasets]
+            else:
+                raise ValueError(
+                    'The input "set_n" requires non-zero integer. Use "--set_n 1" for running over a single dataset.')
     if args.exec_n is None:
         raise ValueError(
             'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
@@ -134,12 +134,13 @@ if __name__ == '__main__':
         for data_name in datasets:
             if data_name in ['cardio', 'ACSM', 'ACSI']:
                 kernel_name = 'gaussian'
-            elif data_name in ['bank', 'lsac', 'meps16', 'ACSP']:
+            elif data_name in ['lsac', 'meps16', 'ACSE', 'ACSP']:
                 kernel_name = 'exponential'
-            elif data_name in ['credit', 'ACSE']:
+            elif data_name in ['credit', 'bank', 'ACSH']:
                 kernel_name = 'tophat'
             else: # for ACSH
-                kernel_name = 'epanechnikov'
+                raise ValueError('The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
+
             for seed in seeds:
                 tasks.append([data_name, seed, kernel_name, res_path])
         with Pool(cpu_count()//2) as pool:

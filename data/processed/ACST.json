@@ -6,22 +6,22 @@
   "n_features": 16,
   "continuous_features": [
     "AGEP",
-    "ESP",
     "SCHL",
-    "POWPUMA",
-    "OCCP",
+    "ESP",
     "RELP",
     "PUMA",
-    "POVPIP",
-    "JWTR"
+    "OCCP",
+    "JWTR",
+    "POWPUMA",
+    "POVPIP"
   ],
   "categorical_features": [
-    "DIS",
-    "CIT",
     "MAR",
     "SEX",
+    "DIS",
     "MIG",
-    "ST"
+    "ST",
+    "CIT"
   ],
   "protected_group": [
     "Black"
@@ -30,19 +30,19 @@
   "pos_perc": 45.3,
   "feature_name_mapping": {
     "AGEP": "X1",
-    "ESP": "X2",
-    "SCHL": "X3",
-    "POWPUMA": "X4",
-    "OCCP": "X5",
-    "RELP": "X6",
-    "PUMA": "X7",
-    "POVPIP": "X8",
-    "JWTR": "X9",
-    "DIS": "X10",
-    "CIT": "X11",
-    "MAR": "X12",
-    "SEX": "X13",
-    "MIG": "X14",
-    "ST": "X15"
+    "SCHL": "X2",
+    "ESP": "X3",
+    "RELP": "X4",
+    "PUMA": "X5",
+    "OCCP": "X6",
+    "JWTR": "X7",
+    "POWPUMA": "X8",
+    "POVPIP": "X9",
+    "MAR": "X10",
+    "SEX": "X11",
+    "DIS": "X12",
+    "MIG": "X13",
+    "ST": "X14",
+    "CIT": "X15"
   }
 }

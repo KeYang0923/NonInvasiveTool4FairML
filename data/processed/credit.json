@@ -5,12 +5,12 @@
   "size": 120269,
   "n_features": 7,
   "continuous_features": [
-    "MonthlyIncome",
-    "NumberOfTimes90DaysLate",
-    "DebtRatio",
-    "NumberOfTime30-59DaysPastDueNotWorse",
     "RevolvingUtilizationOfUnsecuredLines",
-    "NumberOfOpenCreditLinesAndLoans"
+    "NumberOfTime30-59DaysPastDueNotWorse",
+    "DebtRatio",
+    "MonthlyIncome",
+    "NumberOfOpenCreditLinesAndLoans",
+    "NumberOfTimes90DaysLate"
   ],
   "categorical_features": [],
   "protected_group": [
@@ -19,11 +19,11 @@
   "group_perc": 13.7,
   "pos_perc": 10.7,
   "feature_name_mapping": {
-    "MonthlyIncome": "X1",
-    "NumberOfTimes90DaysLate": "X2",
+    "RevolvingUtilizationOfUnsecuredLines": "X1",
+    "NumberOfTime30-59DaysPastDueNotWorse": "X2",
     "DebtRatio": "X3",
-    "NumberOfTime30-59DaysPastDueNotWorse": "X4",
-    "RevolvingUtilizationOfUnsecuredLines": "X5",
-    "NumberOfOpenCreditLinesAndLoans": "X6"
+    "MonthlyIncome": "X4",
+    "NumberOfOpenCreditLinesAndLoans": "X5",
+    "NumberOfTimes90DaysLate": "X6"
   }
 }

@@ -5,11 +5,11 @@
   "size": 24479,
   "n_features": 11,
   "continuous_features": [
+    "zfygpa",
     "zgpa",
+    "DOB_yr",
     "lsat",
     "ugpa",
-    "DOB_yr",
-    "zfygpa",
     "weighted_lsat_ugpa"
   ],
   "categorical_features": [
@@ -24,11 +24,11 @@
   "group_perc": 7.7,
   "pos_perc": 56.6,
   "feature_name_mapping": {
-    "zgpa": "X1",
-    "lsat": "X2",
-    "ugpa": "X3",
-    "DOB_yr": "X4",
-    "zfygpa": "X5",
+    "zfygpa": "X1",
+    "zgpa": "X2",
+    "DOB_yr": "X3",
+    "lsat": "X4",
+    "ugpa": "X5",
     "weighted_lsat_ugpa": "X6",
     "isPartTime": "X7",
     "sex": "X8",

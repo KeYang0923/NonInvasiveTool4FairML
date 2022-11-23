@@ -72,7 +72,7 @@ class Repair(object):
         #print('Data after repair', len(rep_train.index),'CMI:', inf.CMI(X,Y,Z), 'time: ',end)
 
         if method!='sat':
-            rep_train.to_csv(output_path + '-repair.csv', index=False, encoding='utf-8')
+            rep_train.to_csv(output_path + '-cap.csv', index=False, encoding='utf-8')
             # rep_train.to_csv(path+'_rep'+method+'_'+ str(k) + '.csv', encoding='utf-8', index=False)
           #print(path + '_rep' + method + '_' + str(j) + '.csv')
         else:

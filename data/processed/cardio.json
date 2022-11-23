@@ -5,17 +5,17 @@
   "size": 70000,
   "n_features": 10,
   "continuous_features": [
-    "ap_hi",
     "bmi",
+    "ap_hi",
     "ap_lo"
   ],
   "categorical_features": [
     "gender",
+    "cholesterol",
+    "gluc",
     "smoke",
     "alco",
-    "cholesterol",
-    "active",
-    "gluc"
+    "active"
   ],
   "protected_group": [
     "age < 45"
@@ -23,14 +23,14 @@
   "group_perc": 14.7,
   "pos_perc": 29.8,
   "feature_name_mapping": {
-    "ap_hi": "X1",
-    "bmi": "X2",
+    "bmi": "X1",
+    "ap_hi": "X2",
     "ap_lo": "X3",
     "gender": "X4",
-    "smoke": "X5",
-    "alco": "X6",
-    "cholesterol": "X7",
-    "active": "X8",
-    "gluc": "X9"
+    "cholesterol": "X5",
+    "gluc": "X6",
+    "smoke": "X7",
+    "alco": "X8",
+    "active": "X9"
   }
 }

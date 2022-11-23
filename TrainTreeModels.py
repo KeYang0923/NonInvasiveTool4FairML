@@ -139,7 +139,8 @@ def XGB_trainer(data_name, seed, sensi_flag=1, res_path='../intermediate/models/
             print('---' * 8, data_name, seed, '---' * 8)
             print(learner.scoring, "on train data: ", score_train)
             print('---' * 10, '\n')
-
+    else:
+        print('++ no XGBoost Tree model fitted', data_name, seed)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train XGBoost Tree models on original data")

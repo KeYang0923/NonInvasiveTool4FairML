@@ -10,12 +10,12 @@
     "month"
   ],
   "categorical_features": [
-    "loan",
-    "education",
     "housing",
+    "loan",
+    "contact",
     "marital",
-    "day_of_week",
-    "contact"
+    "education",
+    "day_of_week"
   ],
   "protected_group": [
     "age <= 30"
@@ -26,11 +26,11 @@
     "duration": "X1",
     "job": "X2",
     "month": "X3",
-    "loan": "X4",
-    "education": "X5",
-    "housing": "X6",
+    "housing": "X4",
+    "loan": "X5",
+    "contact": "X6",
     "marital": "X7",
-    "day_of_week": "X8",
-    "contact": "X9"
+    "education": "X8",
+    "day_of_week": "X9"
   }
 }

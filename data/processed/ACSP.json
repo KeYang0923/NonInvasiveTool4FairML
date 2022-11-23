@@ -5,26 +5,26 @@
   "size": 86600,
   "n_features": 19,
   "continuous_features": [
-    "PINCP",
     "AGEP",
+    "SCHL",
     "ESP",
-    "SCHL"
+    "PINCP"
   ],
   "categorical_features": [
-    "ANC",
+    "MAR",
     "SEX",
-    "MIL",
-    "NATIVITY",
-    "DEYE",
-    "DEAR",
     "DIS",
     "CIT",
     "MIG",
-    "ESR",
+    "MIL",
+    "ANC",
+    "NATIVITY",
+    "DEAR",
+    "DEYE",
     "DREM",
-    "FER",
-    "MAR",
-    "ST"
+    "ESR",
+    "ST",
+    "FER"
   ],
   "protected_group": [
     "Black"
@@ -32,23 +32,23 @@
   "group_perc": 9.2,
   "pos_perc": 48.3,
   "feature_name_mapping": {
-    "PINCP": "X1",
-    "AGEP": "X2",
+    "AGEP": "X1",
+    "SCHL": "X2",
     "ESP": "X3",
-    "SCHL": "X4",
-    "ANC": "X5",
+    "PINCP": "X4",
+    "MAR": "X5",
     "SEX": "X6",
-    "MIL": "X7",
-    "NATIVITY": "X8",
-    "DEYE": "X9",
-    "DEAR": "X10",
-    "DIS": "X11",
-    "CIT": "X12",
-    "MIG": "X13",
-    "ESR": "X14",
+    "DIS": "X7",
+    "CIT": "X8",
+    "MIG": "X9",
+    "MIL": "X10",
+    "ANC": "X11",
+    "NATIVITY": "X12",
+    "DEAR": "X13",
+    "DEYE": "X14",
     "DREM": "X15",
-    "FER": "X16",
-    "MAR": "X17",
-    "ST": "X18"
+    "ESR": "X16",
+    "ST": "X17",
+    "FER": "X18"
   }
 }

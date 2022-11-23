@@ -2,13 +2,124 @@
 # REQUIRE the activation of virtual enviroment that installs libraries listed in https://github.com/KeYang0923/NonInvasiveTool4FairML/blob/main/requirements.txt
 
 import warnings
-from sklearn import preprocessing
-# import argparse
-
+import argparse
+from multiprocessing import Pool, cpu_count
+from sklearn.preprocessing import KBinsDiscretizer, LabelEncoder
 import pandas as pd
 import numpy as np
-import json, os
+import json, os, pathlib
+
 warnings.filterwarnings(action='ignore')
+
+def read_json(file_name_with_path):
+    if os.path.isfile(file_name_with_path):
+        with open(file_name_with_path) as f:
+            res = json.load(f)
+        return res
+    else:
+        raise ValueError('Not exist', file_name_with_path)
+def save_json(input_dict, file_path_with_name, verbose=False):
+    with open(file_path_with_name, 'w') as json_file:
+        json.dump(input_dict, json_file, indent=2)
+    if verbose:
+        print('--> Dict is saved to ', file_path_with_name + '\n')
+
+def make_folder(file_path):
+    if not os.path.exists(file_path):
+        pathlib.Path(file_path).mkdir(parents=True, exist_ok=True)
+
+def split(df, seed, sizes=[0.7, 0.5]):
+    np.random.seed(seed)
+    n = df.shape[0]
+    split_point = int(sizes[0] * n)
+    order = list(np.random.permutation(n))
+    train_df = df.iloc[order[:split_point], :]
+
+    vt_df = df.iloc[order[split_point:], :]
+    second_n = vt_df.shape[0]
+    second_order = list(np.random.permutation(second_n))
+    second_split_point = int(sizes[1] * second_n)
+
+    val_df = vt_df.iloc[second_order[:second_split_point], :]
+    test_df = vt_df.iloc[second_order[second_split_point:], :]
+    return train_df, val_df, test_df
+
+def prepare_data_for_ML_models(data_name, seeds, cur_path, n_bins=10, sensi_col='A', y_col='Y',
+                               bin_encode_flag='ordinal', bin_strategy = 'kmeans'):
+    res_path = cur_path + '/intermediate/models/'
+    data_path = cur_path + '/data/processed/'
+    cur_path = cur_path + '/'
+    if data_name == 'meps16':
+        data_obj = MEPS(path=cur_path)
+    elif data_name == 'lsac':
+        data_obj = LSAC(path=cur_path)
+    elif data_name == 'cardio':
+        data_obj = Cardio(path=cur_path)
+    elif data_name == 'credit':
+        data_obj = GMCredit(path=cur_path)
+    elif data_name == 'bank':
+        data_obj = Bank(path=cur_path)
+    elif data_name == 'ACSE':
+        data_obj = ACSEmploy(path=cur_path)
+    elif data_name == 'ACSP':
+        data_obj = ACSPublicCoverage(path=cur_path)
+    elif data_name == 'ACSH':
+        data_obj = ACSHealthInsurance(path=cur_path)
+    elif data_name == 'ACST':
+        data_obj = ACSTravelTime(path=cur_path)
+    elif data_name == 'ACSM':
+        data_obj = ACSMobility(path=cur_path)
+    elif data_name == 'ACSI':
+        data_obj = ACSIncomePovertyRatio(path=cur_path)
+    else:
+        raise ValueError('The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACST", "ACSP", "ACSH", "ACSM", "ACSI"].')
+
+    orig_df = data_obj.preprocess(data_path)
+    save_json(data_obj.meta_info, '{}{}.json'.format(data_path, data_name))
+
+    cur_dir = res_path + data_name + '/'
+    make_folder(cur_dir)
+
+    n_features = data_obj.meta_info['n_features']
+    n_cond_features = len(data_obj.meta_info['continuous_features'])
+    num_cols = ['X{}'.format(i) for i in range(1, n_cond_features + 1)]
+    cat_cols = ['X{}'.format(i) for i in range(n_cond_features + 1, n_features)]
+
+    for seed in seeds:
+        # split data into three parts in the ratio of 70%, 15%, 15%
+        tr_df, vl_df, te_df = split(orig_df, seed)
+        tr_df.to_csv('{}train-{}.csv'.format(cur_dir, seed), index=False) # keep index for sanity check of random splits
+        vl_df.to_csv('{}val-{}.csv'.format(cur_dir, seed), index=False)
+        te_df.to_csv('{}test-{}.csv'.format(cur_dir, seed), index=False)
+
+        # bin the three parts for CAPUCHIN
+        train_data = tr_df[num_cols].copy()
+        val_data = vl_df[num_cols].copy()
+        test_data = te_df[num_cols].copy()
+
+        # bin the numerical attributes
+        est = KBinsDiscretizer(n_bins=n_bins, encode=bin_encode_flag, strategy=bin_strategy)
+        est.fit(train_data)
+        cat_train_data = est.transform(train_data)
+        cat_val_data = est.transform(val_data)
+        cat_test_data = est.transform(test_data)
+
+        bin_train_df = pd.DataFrame(columns=num_cols, data=cat_train_data)
+        bin_val_df = pd.DataFrame(columns=num_cols, data=cat_val_data)
+        bin_test_df = pd.DataFrame(columns=num_cols, data=cat_test_data)
+
+        for col_i in cat_cols + [y_col, sensi_col]:
+            bin_train_df[col_i] = list(tr_df[col_i])
+            bin_val_df[col_i] = list(vl_df[col_i])
+            bin_test_df[col_i] = list(te_df[col_i])
+
+        bin_test_df.to_csv('{}train-{}-bin.csv'.format(cur_dir, seed), index=False)
+        bin_val_df.to_csv('{}val-{}-bin.csv'.format(cur_dir, seed), index=False)
+        bin_test_df.to_csv('{}test-{}-bin.csv'.format(cur_dir, seed), index=False)
+
+        save_json({'n_bins': n_bins, 'encode': bin_encode_flag, 'strategy': bin_strategy},
+                  '{}par-bin-{}.json'.format(cur_dir, seed))
+
 
 class Dataset():
     # preprocess real datasets as below
@@ -46,12 +157,15 @@ class Dataset():
         num_atts = []
         cat_atts = []
         # the columns having more than 'num_threshold' distinguishing values are treated as continuous.
-        features = list(set(cur_df.columns).difference([self.sensi_col, self.label_col]))
-        for col_i in features:
-            if len(cur_df[col_i].unique()) >= num_threshold:
-                num_atts.append(col_i)
+        # features = list(set(cur_df.columns).difference([self.sensi_col, self.label_col]))
+        for col_i in cur_df.columns:
+            if col_i == self.sensi_col or col_i == self.label_col:
+                pass
             else:
-                cat_atts.append(col_i)
+                if len(cur_df[col_i].unique()) >= num_threshold:
+                    num_atts.append(col_i)
+                else:
+                    cat_atts.append(col_i)
 
 
         if self.fav_mapping is not None:  # binarize target column
@@ -74,7 +188,7 @@ class Dataset():
         pos_df = group_df.query('Y==1')
 
         self.meta_info.update({'size': cur_df.shape[0],
-                                 'n_features': len(features) + 1,
+                                 'n_features': len(cat_atts)+len(num_atts) + 1,
                                  'continuous_features': num_atts,
                                  'categorical_features': cat_atts,
                                  'protected_group': protected_groups,
@@ -83,17 +197,10 @@ class Dataset():
                                  'feature_name_mapping': col_name_mapping
                              })
 
-        output_df = cur_df[['X' + str(i) for i in range(1, len(features) + 1)] + ['Y', 'A']]
+        output_df = cur_df[['X' + str(i) for i in range(1, len(cat_atts)+len(num_atts) + 1)] + ['Y', 'A']]
         output_df.to_csv(output_path + self.name + '.csv', index=False)
         print('--> Processed data is saved to ', output_path + self.name + '.csv\n')
-    def get_count(self, order_cols, place_holder='X1'):
-        print(self.df[order_cols + [place_holder]].groupby(by=order_cols).count())
-
-    def save_json(self, file_path, verbose=True):
-        with open(file_path + self.name + '.json', 'w') as json_file:
-            json.dump(self.meta_info, json_file, indent=2)
-        if verbose:
-            print('--> Meta information is saved to ', file_path + self.name + '.json\n')
+        return output_df
 
 class Cardio(Dataset):
     # this dataset is from Kaggle https://www.kaggle.com/datasets/sulianova/cardiovascular-disease-dataset
@@ -310,7 +417,7 @@ class Bank(Dataset):
         numerical_columns = ['duration', 'age']
         categorical_columns = ['housing', 'loan', 'contact', 'marital']
         extra_num_atts = ['job', 'education', 'month', 'day_of_week']
-        le = preprocessing.LabelEncoder()
+        le = LabelEncoder()
         for col in extra_num_atts+categorical_columns:
             raw_df[col] = le.fit_transform(raw_df[col])
 
@@ -479,50 +586,67 @@ class ACSIncomePovertyRatio(Dataset):
         else:
             super().__init__(raw_df, 'ACSI', label_col, fav_transform, fav_meta, sensi_col, sensi_col_mapping,
                              sensi_transform_flag)
+
+
 if __name__ == '__main__':
-    # initiate objects for real datasets and proprocess it with meta information extracted
+
+    parser = argparse.ArgumentParser(description="Prepare data for ML models")
+    parser.add_argument("--run", type=str, default='parallel',
+                        help="setting of 'parallel' for system execution or 'serial' execution for unit test.")
+    # parameters for running over smaller number of datasets and few number of executions
+    parser.add_argument("--data", type=str, default='all',
+                        help="name of datasets over which the script is running. Default is for all the datasets.")
+    parser.add_argument("--set_n", type=int, default=None,
+                        help="number of datasets over which the script is running. Default is 10.")
+    parser.add_argument("--bin_n", type=int, default=10,
+                        help="number of binns in categorizing data. Required for CAPUCHIN. Default is 10 for all the datasets.")
+    parser.add_argument("--exec_n", type=int, default=20,
+                        help="number of executions with different random seeds. Default is 20.")
+    args = parser.parse_args()
+
+    datasets = ['meps16', 'lsac', 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
+    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe,
+             0xdeadbeef, 0xbeefcafe]
+
+    if args.data == 'all':
+        pass
+    elif args.data in datasets:
+        datasets = [args.data]
+    else:
+        raise ValueError(
+            'The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
+
+    if args.set_n is not None:
+        if type(args.set_n) == str:
+            raise ValueError(
+                'The input "set_n" requires integer. Use "--set_n 1" for running over a single dataset.')
+        else:
+            n_datasets = int(args.set_n)
+            if n_datasets < 0:
+                datasets = datasets[n_datasets:]
+            elif n_datasets > 0:
+                datasets = datasets[:n_datasets]
+            else:
+                raise ValueError(
+                    'The input "set_n" requires non-zero integer. Use "--set_n 1" for running over a single dataset.')
+
+    if args.exec_n is None:
+        raise ValueError(
+            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
+    elif type(args.exec_n) == str:
+        raise ValueError(
+            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
+    else:
+        n_exec = int(args.exec_n)
+        seeds = seeds[:n_exec]
+
     repo_dir = os.path.dirname(os.path.abspath(__file__))
-    save_path = repo_dir + '/data/processed/'
-    # cardio = Cardio(path=repo_dir+'/')
-    # cardio.preprocess(save_path)
-    # cardio.save_json(save_path)
-    #
-    # lsac = LSAC(path=repo_dir+'/')
-    # lsac.preprocess(save_path)
-    # lsac.save_json(save_path)
-    #
-    # gmcredit = GMCredit(path=repo_dir+'/')
-    # gmcredit.preprocess(save_path)
-    # gmcredit.save_json(save_path)
 
-    # meps = MEPS(path=repo_dir+'/')
-    # meps.preprocess(save_path)
-    # meps.save_json(save_path)
-
-    # bank = Bank(path=repo_dir+'/')
-    # bank.preprocess(save_path)
-    # bank.save_json(save_path)
-
-    # acse = ACSEmploy(path=repo_dir+'/')
-    # acse.preprocess(save_path)
-    # acse.save_json(save_path)
-
-    # acsp = ACSPublicCoverage(path=repo_dir+'/')
-    # acsp.preprocess(save_path)
-    # acsp.save_json(save_path)
-
-    # acsh = ACSHealthInsurance(path=repo_dir+'/')
-    # acsh.preprocess(save_path)
-    # acsh.save_json(save_path)
-
-    # acst = ACSTravelTime(path=repo_dir+'/')
-    # acst.preprocess(save_path)
-    # acst.save_json(save_path)
-
-    # acsm = ACSMobility(path=repo_dir+'/')
-    # acsm.preprocess(save_path)
-    # acsm.save_json(save_path)
-
-    # acsi = ACSIncomePovertyRatio(path=repo_dir+'/')
-    # acsi.preprocess(save_path)
-    # acsi.save_json(save_path)
+    if args.run == 'parallel':
+        tasks = []
+        for data_name in datasets:
+            tasks.append([data_name, seeds, repo_dir, args.bin_n])
+        with Pool(cpu_count()//2) as pool:
+            pool.starmap(prepare_data_for_ML_models, tasks)
+    else:
+        raise ValueError('Do not support serial execution. Use "--run parallel"!')

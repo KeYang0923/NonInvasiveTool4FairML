@@ -12,16 +12,16 @@
   ],
   "categorical_features": [
     "MAR",
-    "MIG",
-    "DEAR",
-    "ANC",
-    "MIL",
+    "DIS",
     "CIT",
+    "MIG",
+    "MIL",
+    "ANC",
+    "NATIVITY",
+    "DEAR",
     "DEYE",
     "DREM",
-    "DIS",
-    "SEX",
-    "NATIVITY"
+    "SEX"
   ],
   "protected_group": [
     "Black"
@@ -34,15 +34,15 @@
     "RELP": "X3",
     "ESP": "X4",
     "MAR": "X5",
-    "MIG": "X6",
-    "DEAR": "X7",
-    "ANC": "X8",
+    "DIS": "X6",
+    "CIT": "X7",
+    "MIG": "X8",
     "MIL": "X9",
-    "CIT": "X10",
-    "DEYE": "X11",
-    "DREM": "X12",
-    "DIS": "X13",
-    "SEX": "X14",
-    "NATIVITY": "X15"
+    "ANC": "X10",
+    "NATIVITY": "X11",
+    "DEAR": "X12",
+    "DEYE": "X13",
+    "DREM": "X14",
+    "SEX": "X15"
   }
 }
