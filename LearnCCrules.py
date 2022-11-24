@@ -43,7 +43,7 @@ def learn_cc_models(data_name, seed, dense_kernal='guassian',
 
     cc_test_df = test_df.copy()
     cc_test_df[cc_cols] = (cc_test_df[cc_cols] - cc_test_df[cc_cols].mean()) / cc_test_df[cc_cols].std()
-
+    par_dict = {}
     for group_i in range(n_groups):
         for label_i in range(n_labels):
             group_input = cc_df[(cc_df[sensi_col] == group_i) & (cc_df[y_col] == label_i)]
@@ -65,9 +65,13 @@ def learn_cc_models(data_name, seed, dense_kernal='guassian',
 
             test_cc_res = group_cc_rules.evaluate(cc_test_df[cc_cols], explanation=True, normalizeViolation=True)
             test_df['vio_G{}_L{}'.format(group_i, label_i)] = test_cc_res.row_wise_violation_summary['violation']
+            cur_vio_mean_train = train_df['vio_G{}_L{}'.format(group_i, label_i)].mean()
+
+            par_dict.update({'mean_train_G{}_L{}'.format(group_i, label_i): cur_vio_mean_train})
     end = timeit.default_timer()
     time = end - start
-    save_json({'time': time}, '{}time-cc-{}.json'.format(cur_dir, seed))
+    par_dict.update({'time': time})
+    save_json(par_dict, '{}par-cc-{}.json'.format(cur_dir, seed))
 
     train_df['vio_cc'] = train_df[[sensi_col, y_col, 'vio_G0_L0', 'vio_G0_L1', 'vio_G1_L0', 'vio_G1_L1']].apply(lambda x: combine_violation(x), axis=1)
 
@@ -86,14 +90,13 @@ if __name__ == '__main__':
                         help="name of datasets over which the script is running. Default is for all the datasets.")
     parser.add_argument("--set_n", type=int, default=None,
                         help="number of datasets over which the script is running. Default is 10.")
-    parser.add_argument("--exec_n", type=int, default=1,
+    parser.add_argument("--exec_n", type=int, default=20,
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
     datasets = ['meps16', 'lsac', 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
 
-    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe,
-             0xdeadbeef, 0xbeefcafe]
+    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
 
     if args.data == 'all':
         pass
@@ -136,9 +139,7 @@ if __name__ == '__main__':
                 kernel_name = 'gaussian'
             elif data_name in ['credit', 'bank', 'lsac', 'meps16', 'ACSM', 'ACSE', 'ACSP', 'ACSH']: #current optimal
                 kernel_name = 'exponential'
-            elif data_name in []:
-                kernel_name = 'tophat'
-            else: # for ACSH
+            else:
                 raise ValueError('The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
 
             for seed in seeds:

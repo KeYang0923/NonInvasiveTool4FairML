@@ -152,6 +152,7 @@ def compute_bal_acc(y_true, y_pred, label_order=[0, 1]):
 
 
 def find_optimal_thres(y_val_df, opt_obj='BalAcc', pred_col=None, num_thresh=100, verbose=False):
+
     cur_val = y_val_df.copy()
     if pred_col is None:
         pred_col = 'Y_pred_scores'
@@ -285,8 +286,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     datasets = ['meps16', 'lsac', 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
-    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe,
-             0xdeadbeef, 0xbeefcafe]
+    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100,
+             923]
     models = ['lr', 'tr']
 
     if args.data == 'all':

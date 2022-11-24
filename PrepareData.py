@@ -73,15 +73,20 @@ def prepare_data_for_ML_models(data_name, seeds, cur_path, n_bins=10, sensi_col=
         data_obj = ACSIncomePovertyRatio(path=cur_path)
     else:
         raise ValueError('The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACST", "ACSP", "ACSH", "ACSM", "ACSI"].')
-
-    orig_df = data_obj.preprocess(data_path)
-    save_json(data_obj.meta_info, '{}{}.json'.format(data_path, data_name))
-
+    meta_file = '{}{}.json'.format(data_path, data_name)
+    if os.path.exists(meta_file):
+        meta_info = read_json(meta_file)
+        orig_df = pd.read_csv('{}{}.csv'.format(data_path, data_name))
+        print('Read existing processed ', data_name)
+    else:
+        orig_df = data_obj.preprocess(data_path)
+        save_json(data_obj.meta_info, meta_file)
+        meta_info = data_obj.meta_info
     cur_dir = res_path + data_name + '/'
     make_folder(cur_dir)
 
-    n_features = data_obj.meta_info['n_features']
-    n_cond_features = len(data_obj.meta_info['continuous_features'])
+    n_features = meta_info['n_features']
+    n_cond_features = len(meta_info['continuous_features'])
     num_cols = ['X{}'.format(i) for i in range(1, n_cond_features + 1)]
     cat_cols = ['X{}'.format(i) for i in range(n_cond_features + 1, n_features)]
 
@@ -605,8 +610,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     datasets = ['meps16', 'lsac', 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
-    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe,
-             0xdeadbeef, 0xbeefcafe]
+    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
 
     if args.data == 'all':
         pass
