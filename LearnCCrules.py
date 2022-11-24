@@ -132,11 +132,11 @@ if __name__ == '__main__':
     if args.run == 'parallel':
         tasks = []
         for data_name in datasets:
-            if data_name in ['cardio', 'ACSM', 'ACSI']:
+            if data_name in ['cardio', 'ACSI']:
                 kernel_name = 'gaussian'
-            elif data_name in ['lsac', 'meps16', 'ACSE', 'ACSP']:
+            elif data_name in ['credit', 'bank', 'lsac', 'meps16', 'ACSM', 'ACSE', 'ACSP', 'ACSH']: #current optimal
                 kernel_name = 'exponential'
-            elif data_name in ['credit', 'bank', 'ACSH']:
+            elif data_name in []:
                 kernel_name = 'tophat'
             else: # for ACSH
                 raise ValueError('The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')

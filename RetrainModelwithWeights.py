@@ -6,7 +6,8 @@ from multiprocessing import Pool, cpu_count
 import pandas as pd
 import numpy as np
 from joblib import dump, load
-from TrainMLModels import read_json, save_json, LogisticRegression, generate_model_predictions, find_optimal_thres
+from PrepareData import read_json, save_json
+from TrainMLModels import LogisticRegression, XgBoost, generate_model_predictions, find_optimal_thres
 from TuneWeightScales import compute_weights, eval_sp
 from copy import deepcopy
 
@@ -44,7 +45,80 @@ def search_inter_degree(settings, degree_try, sp_previous, left=0.01, right=2.0,
     else:
         return search_inter_degree(settings, degree_try + step, sp_try, left, right, step)
 
-def retrain_LR_weights(data_name, seed, reweigh_method, weight_base, input_degree=None, res_path='../intermediate/models/',
+def search_inter_degree_omn(settings, low=0, high=2, epsilon = 0.001, y_col='Y'):
+    train_df, features, validate_df, reweigh_method, weight_base, seed, model_name, cur_dir = settings
+
+    best_acc = -1
+    best_acc_unfair = -1
+    best_fair = 1
+    termination_flag = False
+
+    init_model = load('{}{}-{}.joblib'.format(cur_dir, model_name, seed))
+
+    train_data = train_df[features]
+    Y_train = np.array(train_df[y_col])
+
+    val_data = validate_df[features]
+    validate_df['Y_pred_scores'] = generate_model_predictions(init_model, val_data)
+
+    init_thresh = read_json('{}par-{}-{}.json'.format(cur_dir, model_name, seed))['thres']
+    validate_df['Y_pred'] = validate_df['Y_pred_scores'].apply(lambda x: int(x > init_thresh))
+    init_metric = eval_sp(validate_df, 'Y_pred')
+
+    best_model = None
+    best_degree = 0
+    best_threshold = 0
+    metric = init_metric
+
+    while (abs(metric) >= epsilon or not termination_flag) and (high - low > 0.0001):
+        mid = (high + low) / 2
+        weights = compute_weights(train_df, reweigh_method, weight_base, omn_lam=mid)
+        if model_name == 'lr':
+            learner = LogisticRegression()
+        else:
+            learner = XgBoost()
+
+        model = learner.fit(train_data, Y_train, features, seed, weights)
+        validate_df['Y_pred_mid'] = generate_model_predictions(model, val_data)
+        # print(validate_df.head())
+
+        # optimize threshold first
+        opt_thres = find_optimal_thres(validate_df, opt_obj='BalAcc', pred_col='Y_pred_mid')
+        acc = opt_thres['BalAcc']
+        cur_thresh = opt_thres['thres']
+
+        validate_df['Y_pred'] = validate_df['Y_pred_scores'].apply(lambda x: int(x > cur_thresh))
+        metric = eval_sp(validate_df, 'Y_pred')
+
+        print('--- degree high {} low {} mid {} acc {} sp {}---'.format(high, low, mid, acc, metric))
+
+        if (init_metric > 0 and metric < epsilon) or (init_metric < 0 and metric > -1 * epsilon):
+            high = mid
+        else:
+            low = mid
+        if abs(metric) <= epsilon:
+            if acc > best_acc:
+                best_acc = acc
+                best_model = deepcopy(model)
+                best_degree = mid
+                best_threshold = cur_thresh
+                best_find = 1
+                print('+++ {} {} satisfied at {} sp {} ---'.format(data_name, seed, mid, metric))
+            if (best_acc_unfair - acc) < 0.002:
+                return
+        else:
+            if best_acc_unfair < acc:
+                best_acc_unfair = acc
+
+            if abs(metric) < abs(best_fair):
+                best_acc = acc
+                best_model = deepcopy(model)
+                best_degree = mid
+                best_threshold = cur_thresh
+                best_fair = metric
+    return  best_model, best_threshold, best_degree, metric
+
+def retrain_LR_weights(data_name, seed, model_name, reweigh_method, weight_base, input_degree=None, res_path='../intermediate/models/',
                set_suffix='S_1', data_path='data/processed/', y_col = 'Y', sensi_col='A'):
     start = timeit.default_timer()
     repo_dir = res_path.replace('intermediate/models/', '')
@@ -91,68 +165,9 @@ def retrain_LR_weights(data_name, seed, reweigh_method, weight_base, input_degre
             best_degree = input_degree
 
         else: # search the optimal intervention degree automatically
-            low = 0
-            high = 2
-            best_acc = -1
-            best_acc_unfair = -1
-            best_fair = 1
-            termination_flag = False
-            epsilon = 0.001
-
-            init_model = load('{}model-{}-{}.joblib'.format(cur_dir, seed, set_suffix))
-            validate_df['Y_pred_scores'] = generate_model_predictions(init_model, val_data)
-
-            # optimize threshold first
-            opt_thres = find_optimal_thres(validate_df, opt_obj='BalAcc')
-            init_thresh = opt_thres['thres']
-
-            validate_df['Y_pred'] = validate_df['Y_pred_scores'].apply(lambda x: int(x > init_thresh))
-            init_metric = eval_sp(validate_df, 'Y_pred')
-            best_model = None
-            best_degree = 0
-            best_threshold = 0
-            metric = init_metric
-
-            while (abs(metric) >= epsilon or not termination_flag) and (high - low > 0.0001):
-                mid = (high + low) / 2
-                weights = compute_weights(train_df, reweigh_method, weight_base, omn_lam=mid)
-                learner = LogisticRegression()
-                model = learner.fit(train_data, Y_train, features, seed, weights)
-                validate_df['Y_pred_scores'] = generate_model_predictions(model, val_data)
-                # print(validate_df.head())
-
-                # optimize threshold first
-                opt_thres = find_optimal_thres(validate_df, opt_obj='BalAcc')
-                acc = opt_thres['BalAcc']
-                cur_thresh = opt_thres['thres']
-
-                validate_df['Y_pred'] = validate_df['Y_pred_scores'].apply(lambda x: int(x > cur_thresh))
-                metric = eval_sp(validate_df, 'Y_pred')
-                if (init_metric > 0 and metric < epsilon) or (init_metric < 0 and metric > -1 * epsilon):
-                    high = mid
-                else:
-                    low = mid
-                if abs(metric) <= epsilon:
-                    if acc > best_acc:
-                        best_acc = acc
-                        best_model = deepcopy(model)
-                        best_degree = mid
-                        best_threshold = cur_thresh
-                        best_find = 1
-                        # print('+++ {} {} satisfied at {} sp {} ---'.format(data_name, seed, mid, metric))
-                    if (best_acc_unfair - acc) < 0.002:
-                        return
-                else:
-                    if best_acc_unfair < acc:
-                        best_acc_unfair = acc
-
-                    if abs(metric) < abs(best_fair):
-                        best_acc = acc
-                        best_model = deepcopy(model)
-                        best_degree = mid
-                        best_threshold = cur_thresh
-                        best_fair = metric
-                # print('--- degree high {} low {} mid {} acc {} sp {}---'.format(high, low, mid, acc, metric))
+            settings = (train_df, features, validate_df, reweigh_method, weight_base, seed, model_name, res_path)
+            best_model, best_threshold, best_degree, best_recorded_sp = search_inter_degree_omn(settings)
+            print('++++Best', best_degree, best_threshold, best_recorded_sp)
 
     elif reweigh_method == 'scc':
         if input_degree: # user-specified intervention degree

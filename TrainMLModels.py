@@ -280,7 +280,7 @@ if __name__ == '__main__':
     parser.add_argument("--model", type=str, default='all',
                         help="extract results for all the models as default. Otherwise, only extract the results for the input model from ['lr', 'tr'].")
 
-    parser.add_argument("--exec_n", type=int, default=1,
+    parser.add_argument("--exec_n", type=int, default=20,
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
@@ -337,7 +337,7 @@ if __name__ == '__main__':
         for data_name in datasets:
             for seed in seeds:
                 for model_i in models:
-                    tasks.append([data_name, seed, model_i, args.sensi, res_path, True])
+                    tasks.append([data_name, seed, model_i, args.sensi, res_path, False])
         with Pool(cpu_count()//2) as pool:
             pool.starmap(model_trainer, tasks)
     else:
