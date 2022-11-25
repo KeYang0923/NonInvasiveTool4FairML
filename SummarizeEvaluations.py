@@ -49,11 +49,11 @@ def extract_evaluations(data_name, seeds, models, res_path='../intermediate/mode
                     eval_res = read_json(eval_single_name)
                     method_name = weight_i.upper() + '-' + base_i.upper()
                     for group in ['all', 'G0', 'G1']:
-                        base = [data_name, model_name, seed, method_name, group]
+                        base = [data_name, model_name.upper(), seed, method_name, group]
                         for metric_i in group_eval_metrics:
                             res_df.loc[res_df.shape[0]] = base + [metric_i, eval_res[weight_i.upper()][group][metric_i]]
                     for metric_i in overall_metrics:
-                        res_df.loc[res_df.shape[0]] = [data_name, model_name, seed, method_name, 'all'] + [metric_i, eval_res[weight_i.upper()]['all'][metric_i]]
+                        res_df.loc[res_df.shape[0]] = [data_name, model_name.upper(), seed, method_name, 'all'] + [metric_i, eval_res[weight_i.upper()]['all'][metric_i]]
                 else:
                     print('--> no eval for', eval_single_name)
     res_df.to_csv(eval_path+'res-{}.csv'.format(data_name), index=False)
@@ -69,14 +69,14 @@ if __name__ == '__main__':
     parser.add_argument("--model", type=str, default='all',
                         help="extract results for all the models as default. Otherwise, only extract the results for the input model from ['lr', 'tr'].")
 
-    parser.add_argument("--exec_n", type=int, default=5,
+    parser.add_argument("--exec_n", type=int, default=20,
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
     datasets = ['meps16', 'lsac', 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
 
-    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100,
-             923]
+    seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+
     models = ['lr', 'tr']
 
     if args.data == 'all':

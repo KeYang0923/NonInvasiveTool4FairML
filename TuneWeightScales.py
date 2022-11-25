@@ -116,7 +116,7 @@ def compute_weights(df, method, sample_base='zero', alpha_g0=2.0, alpha_g1=1.0, 
 
 
 def retrain_ML_models_all_degrees(data_name, seed, model_name, reweigh_method, weight_base, verbose, res_path='../intermediate/models/',
-               degree_start=0.01, degree_end=0.3, degree_step=0.1,
+               degree_start=0.01, degree_end=2.0, degree_step=0.01,
                data_path='data/processed/', y_col = 'Y', sensi_col='A'):
     cur_dir = res_path + data_name + '/'
     repo_dir = res_path.replace('intermediate/models/', '')
@@ -135,7 +135,6 @@ def retrain_ML_models_all_degrees(data_name, seed, model_name, reweigh_method, w
     meta_info = read_json('{}/{}{}.json'.format(repo_dir, data_path, data_name))
 
     cc_par = read_json('{}par-cc-{}.json'.format(cur_dir, seed))
-    # cc_par = None
     feature_setting = read_json('{}par-{}-{}.json'.format(cur_dir, model_name, seed))['model_setting']
 
     n_features = meta_info['n_features']  # including sensitive column
@@ -189,7 +188,7 @@ if __name__ == '__main__':
                         help="name of datasets over which the script is running. Default is for all the datasets.")
     parser.add_argument("--set_n", type=int, default=None,
                         help="number of datasets over which the script is running. Default is 10.")
-    parser.add_argument("--model", type=str, default='tr',
+    parser.add_argument("--model", type=str, default='all',
                         help="extract results for all the models as default. Otherwise, only extract the results for the input model from ['lr', 'tr'].")
 
     parser.add_argument("--weight", type=str, default='scc',
@@ -199,15 +198,15 @@ if __name__ == '__main__':
     parser.add_argument("--save", type=int, default=1,
                         help="whether to print the results of degrees into disc.")
 
-    parser.add_argument("--exec_n", type=int, default=1,
+    parser.add_argument("--exec_n", type=int, default=5,
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
-    datasets = ['meps16', 'lsac', 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
+    datasets = ['meps16', 'lsac'] #, 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
 
-    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100,
-             923]
+    seeds = [1, 12345, 6, 2211, 15] #, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
     models = ['lr', 'tr']
+
     if args.data == 'all':
         pass
     elif args.data in datasets:
