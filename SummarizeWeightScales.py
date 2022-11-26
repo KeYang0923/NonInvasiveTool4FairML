@@ -1,5 +1,5 @@
 import warnings
-from TrainMLModels import read_json
+from PrepareData import read_json
 
 import pandas as pd
 import argparse
@@ -9,25 +9,23 @@ import os
 warnings.filterwarnings(action='ignore')
 
 def extract_impact_weight_scales(data_name, seeds, models, res_path='../intermediate/models/',
-               set_suffix='S_1', eval_path='eval/', ):
+                                 eval_path='eval/'):
 
     repo_dir = res_path.replace('intermediate/models/', '')
     eval_path = repo_dir + eval_path
 
     cur_dir = res_path + data_name + '/'
-    scc_weights = ['scc', 'scc', 'scc', 'omn']
-    scc_bases = ['one', 'kam', 'omn', 'one']
+    scc_weights = ['scc', 'scc', 'omn']
+    scc_bases = ['one', 'kam', 'one']
 
     res_df = pd.DataFrame(columns=['data', 'model', 'seed', 'method', 'degree', 'BalAcc', 'SPDiff'])
 
     for model_i in models:
-        if model_i == '':
-            model_name = 'LR'
+        if model_i == 'lr':
             extra_weights = ['kam']
         if model_i == 'tr':
-            model_name = 'TR'
             extra_weights = ['kam', 'cap']
-
+        model_name = model_i.upper()
         for seed in seeds:
             for reweigh_method, weight_base in zip(scc_weights, scc_bases):
                 degree_file = '{}{}degrees-{}-{}-{}.txt'.format(cur_dir, model_i, seed, reweigh_method, weight_base)
@@ -44,7 +42,7 @@ def extract_impact_weight_scales(data_name, seeds, models, res_path='../intermed
             # get the results from the methods without degrees
             for reweigh_method in extra_weights:
                 weight_base = 'one'
-                eval_file = '{}{}eval-{}-{}-{}-{}.json'.format(cur_dir, model_i, seed, set_suffix, reweigh_method, weight_base)
+                eval_file = '{}eval-{}-{}-{}-{}.json'.format(cur_dir, model_i, seed, reweigh_method, weight_base)
                 if os.path.exists(eval_file):
                     eval_res = read_json(eval_file)
 
@@ -63,29 +61,44 @@ if __name__ == '__main__':
     parser.add_argument("--data", type=str, default='all',
                         help="extract results for all the datasets as default. Otherwise, only extract the results for the input dataset.")
     parser.add_argument("--model", type=str, default='all',
-                        help="extract results for all the models as default. Otherwise, only extract the results for the input model from ['', 'tr'].")
-    parser.add_argument("--exec_n", type=int, default=20,
+                        help="extract results for all the models as default. Otherwise, only extract the results for the input model from ['lr', 'tr'].")
+    parser.add_argument("--exec_n", type=int, default=5,
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
+    datasets = ['meps16', 'lsac']
 
-    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 0xdeadcafe,
-             0xdeadbeef, 0xbeefcafe]
-    models = ['', 'tr']
-    datasets = ['lsac', 'cardio', 'bank', 'meps16', 'credit', 'ACSE', 'ACSP', 'ACSH', 'ACSM', 'ACSI']
+    seeds = [1, 12345, 6, 2211, 15]
+
+    models = ['lr', 'tr']
+
     if args.data == 'all':
         pass
     elif args.data in datasets:
         datasets = [args.data]
     else:
-        raise ValueError('The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
+        raise ValueError(
+            'The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
 
+    if args.set_n is not None:
+        if type(args.set_n) == str:
+            raise ValueError(
+                'The input "set_n" requires integer. Use "--set_n 1" for running over a single dataset.')
+        else:
+            n_datasets = int(args.set_n)
+            if n_datasets < 0:
+                datasets = datasets[n_datasets:]
+            elif n_datasets > 0:
+                datasets = datasets[:n_datasets]
+            else:
+                raise ValueError(
+                    'The input "set_n" requires non-zero integer. Use "--set_n 1" for running over a single dataset.')
     if args.model == 'all':
         pass
     elif args.model in models:
         models = [args.model]
     else:
-        raise ValueError('The input "model" is not valid. CHOOSE FROM ["", "tr"].')
+        raise ValueError('The input "model" is not valid. CHOOSE FROM ["lr", "tr"].')
 
     if args.exec_n is None:
         raise ValueError('The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')

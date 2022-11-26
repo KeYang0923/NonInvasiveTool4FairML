@@ -3,15 +3,22 @@ import argparse, os
 from multiprocessing import Pool, cpu_count
 
 import pandas as pd
-from joblib import load
-from TrainMLModels import read_json, generate_model_predictions
-from EvaluateModels import assign_pred_mcc_min, assign_pred_mcc_weight, assign_pred_sensi, assign_pred_mcc_weight_group
+from PrepareData import read_json, save_json
+from EvaluateModels import eval_settings
 
 warnings.filterwarnings('ignore')
 
-def extract_mcc_vs_sep(data_name, seeds, models, res_path='../intermediate/models/', sim_setting='both',
-                       eval_path='eval/'
+def eval_min_violation(data_name, seeds, models, res_path='../intermediate/models/', label=None,
+                       eval_path='eval/', sensi_col='A'
                        ):
+    if label is None:
+        labels = range(2)
+    elif label == 'pos':
+        labels = [1]
+    elif label == 'neg':
+        labels = [0]
+    else:
+        raise ValueError('The "label" is need to be in [None, pos, neg].')
     repo_dir = res_path.replace('intermediate/models/', '')
     eval_path = repo_dir + eval_path
 
@@ -27,7 +34,7 @@ def extract_mcc_vs_sep(data_name, seeds, models, res_path='../intermediate/model
             for group_i in range(2):
                 sim_indiv = []
                 group_n = test_df.query('A=={}'.format(group_i)).shape[0]
-                for label_i in range(2):
+                for label_i in labels:
                     vio_mean = cc_par['mean_train_G{}_L{}'.format(group_i, label_i)]
                     vio_col = 'vio_G{}_L{}'.format(group_i, label_i)
                     vio_min = test_df[vio_col].min()
@@ -38,22 +45,23 @@ def extract_mcc_vs_sep(data_name, seeds, models, res_path='../intermediate/model
 
                     else:
                         cur_index = []
-                    if sim_setting == 'both':
-                        sim_indiv = list(set(sim_indiv).intersection(set(cur_index)))
-                    elif sim_setting == 'one':
-                        sim_indiv = list(set(sim_indiv).union(set(cur_index)))
-                    else:
-                        raise ValueError('The input "similar" is not valid. CHOOSE FROM ["both", "one"].')
+                    sim_indiv = list(set(sim_indiv).union(set(cur_index)))
+
                 key_groups.append(sim_indiv)
                 base_row = [data_name, seed, test_df.shape[0], group_n,
                             '{} to {}'.format(group_i, abs(group_i - 1)), len(sim_indiv)]
 
                 group_sim_other_df = test_df.iloc[sim_indiv, :]
+                eval_res = {}
                 for pred_col_i, weight_set in zip(
                         ['Y_pred_min', 'Y_pred_w1', 'Y_pred_w2', 'Y_pred', 'Y_pred_A'],
                         ['MCC-MIN', 'MCC-W1', 'MCC-W2', 'ORIG', 'SEP']):
                     correct_df = group_sim_other_df.query('{} == Y'.format(pred_col_i))
+                    eval_res[weight_set] = eval_settings(group_sim_other_df, sensi_col, pred_col_i)
+
                     res_df.loc[res_df.shape[0]] = base_row + [model_name, weight_set, correct_df.shape[0]]
+
+                save_json(eval_res, '{}eval-min-{}-{}-{}.json'.format(cur_dir, model_name, seed, 'multi'))
 
             # simgle model cases
             weights = ['scc', 'scc', 'omn', 'kam']
@@ -63,24 +71,28 @@ def extract_mcc_vs_sep(data_name, seeds, models, res_path='../intermediate/model
                 weights = weights + ['cap']
                 bases = bases + ['one']
 
-            for reweigh_method, weight_base in zip(weights, bases):
-                scc_test_file = '{}pred-{}-{}-{}-{}.csv'.format(cur_dir, model_name, seed, reweigh_method, weight_base)
+            for reweight_method, weight_base in zip(weights, bases):
+                scc_test_file = '{}pred-{}-{}-{}-{}.csv'.format(cur_dir, model_name, seed, reweight_method, weight_base)
 
                 if os.path.exists(scc_test_file):
                     test_df = pd.read_csv(scc_test_file)
-
+                    cur_single = reweight_method.upper()+'-'+weight_base.upper()
                     # compute the two cases:
                     if len(key_groups) == 2:
                         for group_i, sim_indiv_list in zip([0, 1], key_groups):
                             group_n = test_df.query('A=={}'.format(group_i)).shape[0]
                             group_sim_other = test_df.iloc[sim_indiv_list, :]
+                            eval_res = {}
+                            eval_res[reweight_method.upper()] = eval_settings(group_sim_other, sensi_col, 'Y_pred')
+
+                            save_json(eval_res, '{}eval-min-{}-{}-{}-{}.json'.format(cur_dir, model_name, seed, reweight_method, weight_base))
 
                             base_row = [data_name, seed, test_df.shape[0], group_n,
                                         '{} to {}'.format(group_i, abs(group_i - 1)), group_sim_other.shape[0]]
 
                             correct_df = group_sim_other.query('Y_pred == Y')
 
-                            res_df.loc[res_df.shape[0]] = base_row + [model_name, reweigh_method.upper()+'-'+weight_base.upper(), correct_df.shape[0]]
+                            res_df.loc[res_df.shape[0]] = base_row + [model_name, cur_single, correct_df.shape[0]]
                 else:
                     print('--> no', scc_test_file)
 
@@ -94,11 +106,10 @@ if __name__ == '__main__':
     parser.add_argument("--data", type=str, default='all',
                         help="extract results for all the datasets as default. Otherwise, only extract the results for the input dataset.")
     parser.add_argument("--model", type=str, default='all',
-                        help="extract results for all the models as default. Otherwise, only extract the results for the input model from ['', 'tr'].")
-    parser.add_argument("--similar", type=str, default='both',
-                        help="individuals are similar for both labels under 'all' or similar in only one label under 'one'.")
-
-    parser.add_argument("--exec_n", type=int, default=5,
+                        help="extract results for all the models as default. Otherwise, only extract the results for the input model from ['lr', 'tr'].")
+    parser.add_argument("--focus", type=str, default='pos',
+                        help="focus on only positive or negative label by specifying 'pos' or 'neg'. On both labels by specifying as None.")
+    parser.add_argument("--exec_n", type=int, default=20,
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
@@ -135,8 +146,8 @@ if __name__ == '__main__':
     if args.run == 'parallel':
         tasks = []
         for data_name in datasets:
-            tasks.append([data_name, seeds, models, res_path, args.similar])
+            tasks.append([data_name, seeds, models, res_path, args.focus])
         with Pool(cpu_count()//2) as pool:
-            pool.starmap(extract_mcc_vs_sep, tasks)
+            pool.starmap(eval_min_violation, tasks)
     else:
         raise ValueError('Do not support serial execution. Use "--run parallel"!')

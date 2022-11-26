@@ -176,6 +176,8 @@ def retrain_ML_models_all_degrees(data_name, seed, model_name, reweigh_method, w
             format_print('---{} {} {} {}---'.format(model_name, cur_degree, cur_acc, cur_sp), print_f)
             if cur_sp > 0 and reweigh_method == 'scc' and weight_base == 'one':
                 reverse_flag = True
+        else:
+            print('no model fitted ', data_name, model_name, seed, reweigh_method, weight_base)
         cur_degree += degree_step
     if verbose:
         print_f.close()
