@@ -233,7 +233,7 @@ def eval_predicitons(data_name, seed, model_name, setting, res_path='../intermed
                 print('++ no model for', test_file)
 
     else:
-        raise ValueError('Input "method" is not supported. CHOOSE FROM [mcc, single].')
+        raise ValueError('Input "method" is not supported. CHOOSE FROM [multi, single].')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Eval fairness interventions on real data")

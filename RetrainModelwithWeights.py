@@ -311,7 +311,8 @@ if __name__ == '__main__':
                 raise ValueError(
                     'The input "set_n" requires non-zero integer. Use "--set_n 1" for running over a single dataset.')
     if args.model == 'all':
-        pass
+        if args.weight == 'cap':
+            models = ['tr']
     elif args.model in models:
         models = [args.model]
     else:

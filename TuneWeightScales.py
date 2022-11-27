@@ -7,9 +7,9 @@ import pandas as pd
 import numpy as np
 
 from sklearn.metrics import confusion_matrix
+from PrepareData import read_json
+from TrainMLModels import LogisticRegression, XgBoost, generate_model_predictions, find_optimal_thres, compute_bal_acc
 
-from TrainMLModels import read_json, LogisticRegression, generate_model_predictions, find_optimal_thres, compute_bal_acc
-from TrainTreeModels import XgBoost
 warnings.filterwarnings(action='ignore')
 
 def format_print(str_input, output_f=None):
@@ -204,8 +204,8 @@ if __name__ == '__main__':
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
-    datasets = ['meps16', 'lsac'] #, 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
-
+    # datasets = ['meps16', 'lsac'] #, 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
+    datasets = ['ACSP', 'ACSH']
     seeds = [1, 12345, 6, 2211, 15] #, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
     models = ['lr', 'tr']
 

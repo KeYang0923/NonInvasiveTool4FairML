@@ -66,7 +66,7 @@ if __name__ == '__main__':
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
-    datasets = ['meps16', 'lsac']
+    datasets = ['ACSP', 'ACSH']
 
     seeds = [1, 12345, 6, 2211, 15]
 
@@ -80,19 +80,6 @@ if __name__ == '__main__':
         raise ValueError(
             'The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
 
-    if args.set_n is not None:
-        if type(args.set_n) == str:
-            raise ValueError(
-                'The input "set_n" requires integer. Use "--set_n 1" for running over a single dataset.')
-        else:
-            n_datasets = int(args.set_n)
-            if n_datasets < 0:
-                datasets = datasets[n_datasets:]
-            elif n_datasets > 0:
-                datasets = datasets[:n_datasets]
-            else:
-                raise ValueError(
-                    'The input "set_n" requires non-zero integer. Use "--set_n 1" for running over a single dataset.')
     if args.model == 'all':
         pass
     elif args.model in models:

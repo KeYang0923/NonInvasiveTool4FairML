@@ -71,8 +71,10 @@ if __name__ == '__main__':
                         help="number of datasets over which the script is running. Default is 10.")
     parser.add_argument("--model", type=str, default='all',
                         help="extract results for all the models as default. Otherwise, only extract the results for the input model from ['lr', 'tr'].")
-    parser.add_argument("--eval", type=str, default='-min',
-                        help="the setting of evaluation. Default is running over the entire test set. If '-min' is specified, get the evaluation results for similar individuals.")
+    parser.add_argument("--eval", type=str, default='-sort_g1-0.5',
+                        help="the setting of evaluation. Default is running over the entire test set. "
+                             "If '-min', '-sort', '-min_g0', or '-sort_g0' is specified, get the evaluation results for erroneous test data. "
+                             "If '-min' is specified, get the evaluation results for similar individuals.")
     parser.add_argument("--exec_n", type=int, default=20,
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()

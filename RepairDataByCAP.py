@@ -1,14 +1,11 @@
 # Process real datasets using CAPUCHINE
-# REQUIRE the activation of virtual enviroment that installs AIF 360. See details at https://github.com/Trusted-AI/AIF360.
 import warnings
 import os, timeit, argparse
 
 from CAPUCHIN.Core.indep_repair import Repair
 from CAPUCHIN.Modules.InformationTheory.info_theo import Info
-from TrainMLModels import read_json, save_json, make_folder
-from sklearn.preprocessing import KBinsDiscretizer
+from PrepareData import read_json, save_json
 import pandas as pd
-import numpy as np
 
 warnings.filterwarnings(action='ignore')
 
