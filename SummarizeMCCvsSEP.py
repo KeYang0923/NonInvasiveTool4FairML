@@ -11,14 +11,6 @@ warnings.filterwarnings('ignore')
 def eval_min_violation(data_name, seeds, models, res_path='../intermediate/models/', label=None,
                        eval_path='eval/', sensi_col='A'
                        ):
-    if label is None:
-        labels = range(2)
-    elif label == 'pos':
-        labels = [1]
-    elif label == 'neg':
-        labels = [0]
-    else:
-        raise ValueError('The "label" is need to be in [None, pos, neg].')
     repo_dir = res_path.replace('intermediate/models/', '')
     eval_path = repo_dir + eval_path
 
@@ -31,7 +23,20 @@ def eval_min_violation(data_name, seeds, models, res_path='../intermediate/model
             # multi model case
             test_df = pd.read_csv('{}/test-{}-{}-multi.csv'.format(cur_dir, model_name, seed))
             key_groups = []
+            name_suffix = []
             for group_i in range(2):
+                if label is None:
+                    labels = range(2)
+                    eval_suffix = 'sim-both-{}'.format(group_i)
+                elif label == 'pos':
+                    labels = [1]
+                    eval_suffix = 'sim-pos-{}'.format(group_i)
+                elif label == 'neg':
+                    labels = [0]
+                    eval_suffix = 'sim-neg-{}'.format(group_i)
+                else:
+                    raise ValueError('The "label" is need to be in [None, pos, neg].')
+                name_suffix.append(eval_suffix)
                 sim_indiv = []
                 group_n = test_df.query('A=={}'.format(group_i)).shape[0]
                 for label_i in labels:
@@ -40,7 +45,7 @@ def eval_min_violation(data_name, seeds, models, res_path='../intermediate/model
                     vio_min = test_df[vio_col].min()
                     if vio_mean > 0.1: # strong CC rules learned
                         # similar individuals are the ones from other groups with minimal violations
-                        cur_sim_df = test_df.query('{}=={} and A=={}'.format(vio_col, vio_min, abs(1-group_i)))
+                        cur_sim_df = test_df.query('{}=={} and A=={}'.format(vio_col, vio_min, group_i))
                         cur_index = list(cur_sim_df.index)
 
                     else:
@@ -61,7 +66,7 @@ def eval_min_violation(data_name, seeds, models, res_path='../intermediate/model
 
                     res_df.loc[res_df.shape[0]] = base_row + [model_name, weight_set, correct_df.shape[0]]
 
-                save_json(eval_res, '{}eval-min-{}-{}-{}.json'.format(cur_dir, model_name, seed, 'multi'))
+                save_json(eval_res, '{}eval-{}-{}-{}-{}.json'.format(cur_dir, eval_suffix, model_name, seed, 'multi'))
 
             # simgle model cases
             weights = ['scc', 'scc', 'omn', 'kam']
@@ -79,13 +84,13 @@ def eval_min_violation(data_name, seeds, models, res_path='../intermediate/model
                     cur_single = reweight_method.upper()+'-'+weight_base.upper()
                     # compute the two cases:
                     if len(key_groups) == 2:
-                        for group_i, sim_indiv_list in zip([0, 1], key_groups):
+                        for group_i, sim_indiv_list, eval_suffix in zip([0, 1], key_groups, name_suffix):
                             group_n = test_df.query('A=={}'.format(group_i)).shape[0]
                             group_sim_other = test_df.iloc[sim_indiv_list, :]
                             eval_res = {}
                             eval_res[reweight_method.upper()] = eval_settings(group_sim_other, sensi_col, 'Y_pred')
 
-                            save_json(eval_res, '{}eval-min-{}-{}-{}-{}.json'.format(cur_dir, model_name, seed, reweight_method, weight_base))
+                            save_json(eval_res, '{}eval-{}-{}-{}-{}-{}.json'.format(cur_dir, eval_suffix, model_name, seed, reweight_method, weight_base))
 
                             base_row = [data_name, seed, test_df.shape[0], group_n,
                                         '{} to {}'.format(group_i, abs(group_i - 1)), group_sim_other.shape[0]]
@@ -96,8 +101,16 @@ def eval_min_violation(data_name, seeds, models, res_path='../intermediate/model
                 else:
                     print('--> no', scc_test_file)
 
-    res_df.to_csv('{}{}-{}.csv'.format(eval_path, 'min', data_name), index=False)
-    print('similar res is saved at', '{}{}-{}.csv'.format(eval_path, 'min', data_name))
+    if label is None:
+        eval_suffix = 'sim-both-{}'.format(group_i)
+    elif label == 'pos':
+        eval_suffix = 'sim-pos-{}'.format(group_i)
+    elif label == 'neg':
+        eval_suffix = 'sim-neg-{}'.format(group_i)
+    else:
+        raise ValueError('The "label" is need to be in [None, pos, neg].')
+    res_df.to_csv('{}n-{}-{}.csv'.format(eval_path, eval_suffix, data_name), index=False)
+    print('similar res is saved at', '{}n-{}-{}.csv'.format(eval_path, eval_suffix, data_name))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Extract evaluation results for similar individuals")
@@ -107,7 +120,7 @@ if __name__ == '__main__':
                         help="extract results for all the datasets as default. Otherwise, only extract the results for the input dataset.")
     parser.add_argument("--model", type=str, default='all',
                         help="extract results for all the models as default. Otherwise, only extract the results for the input model from ['lr', 'tr'].")
-    parser.add_argument("--focus", type=str, default='pos',
+    parser.add_argument("--focus", type=str, default=None,
                         help="focus on only positive or negative label by specifying 'pos' or 'neg'. On both labels by specifying as None.")
     parser.add_argument("--exec_n", type=int, default=20,
                         help="number of executions with different random seeds. Default is 20.")

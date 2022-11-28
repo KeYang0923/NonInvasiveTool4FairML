@@ -200,15 +200,17 @@ def run_error_simulation(data_name, seed, model_name, setting, error_perc=0.2, e
             if os.path.exists(model_file):
                 opt_thres = read_json('{}par-{}-{}-{}-{}.json'.format(cur_dir, model_name, seed, reweigh_method, weight_base))
                 opt_model = load(model_file)
+                cur_err_df = err_test_df.copy()
 
-                err_test_df['Y_pred'] = generate_model_predictions(opt_model, err_test_data, opt_thres['thres'])
-                err_test_df[[sensi_col, 'Y', 'Y_pred']].to_csv('{}pred-{}-{}-{}-{}-{}.csv'.format(cur_dir, error_suffix, model_name, seed, reweigh_method, weight_base), index=False)
+                cur_err_df['Y_pred'] = generate_model_predictions(opt_model, err_test_data, opt_thres['thres'])
+                cur_err_df[[sensi_col, 'Y', 'Y_pred']].to_csv('{}pred-{}-{}-{}-{}-{}.csv'.format(cur_dir, error_suffix, model_name, seed, reweigh_method, weight_base), index=False)
 
                 # reverse the group membership before evaluation
-                err_test_df[sensi_col] = err_test_df[sensi_col].apply(lambda x: int(1 - x))
+                cur_err_df[sensi_col] = cur_err_df[sensi_col].apply(lambda x: int(1 - x))
 
                 eval_res = {}
-                eval_res[reweigh_method.upper()] = eval_settings(err_test_df, sensi_col, 'Y_pred')
+                eval_res[reweigh_method.upper()] = eval_settings(cur_err_df, sensi_col, 'Y_pred')
+                # print(eval_res)
 
                 save_json(eval_res, '{}eval-{}-{}-{}-{}-{}.json'.format(cur_dir, error_suffix, model_name, seed, reweigh_method, weight_base))
             else:

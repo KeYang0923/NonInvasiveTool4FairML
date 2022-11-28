@@ -28,7 +28,7 @@ def extract_impact_weight_scales(data_name, seeds, models, res_path='../intermed
         model_name = model_i.upper()
         for seed in seeds:
             for reweigh_method, weight_base in zip(scc_weights, scc_bases):
-                degree_file = '{}{}degrees-{}-{}-{}.txt'.format(cur_dir, model_i, seed, reweigh_method, weight_base)
+                degree_file ='{}degrees-{}-{}-{}-{}.txt'.format(cur_dir, model_name, seed, reweigh_method, weight_base)
                 if os.path.exists(degree_file):
                     f = open(degree_file, "r")
                     while (True):
@@ -66,7 +66,7 @@ if __name__ == '__main__':
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
-    datasets = ['ACSP', 'ACSH']
+    datasets = ['lsac', 'meps16', 'ACSP', 'ACSH']
 
     seeds = [1, 12345, 6, 2211, 15]
 

@@ -60,7 +60,7 @@ def extract_evaluations(data_name, seeds, models, res_path='../intermediate/mode
                 else:
                     print('--> no eval for', eval_single_name)
     res_df.to_csv(eval_path+'res{}-{}.csv'.format(eval_name_suffix, data_name), index=False)
-
+    print('Result is saved at', eval_path+'res{}-{}.csv'.format(eval_name_suffix, data_name))
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Extract evaluation results")
     parser.add_argument("--run", type=str, default='parallel',
@@ -71,9 +71,9 @@ if __name__ == '__main__':
                         help="number of datasets over which the script is running. Default is 10.")
     parser.add_argument("--model", type=str, default='all',
                         help="extract results for all the models as default. Otherwise, only extract the results for the input model from ['lr', 'tr'].")
-    parser.add_argument("--eval", type=str, default='-sort_g1-0.5',
+    parser.add_argument("--eval", type=str, default='-sim-both-1',
                         help="the setting of evaluation. Default is running over the entire test set. "
-                             "If '-min', '-sort', '-min_g0', or '-sort_g0' is specified, get the evaluation results for erroneous test data. "
+                             "If '-min-0.5', '-sort-0.5', '-min_g0-0.5', or '-sort_g0-0.5' is specified, get the evaluation results for erroneous test data. "
                              "If '-min' is specified, get the evaluation results for similar individuals.")
     parser.add_argument("--exec_n", type=int, default=20,
                         help="number of executions with different random seeds. Default is 20.")
