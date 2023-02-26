@@ -9,6 +9,7 @@ from joblib import dump, load
 from PrepareData import read_json, save_json
 from TrainMLModels import LogisticRegression, XgBoost, generate_model_predictions, find_optimal_thres
 from TuneWeightScales import compute_weights, eval_sp
+from EvaluateModels import eval_settings
 from copy import deepcopy
 
 warnings.filterwarnings(action='ignore')
@@ -29,8 +30,11 @@ def get_sp(settings, inter_degree, reverse_flag=False, y_col = 'Y'):
 
     if model is not None:
         val_data = validate_df[features]
-        validate_df['Y_pred_scores'] = generate_model_predictions(model, val_data)
+        val_predict = generate_model_predictions(model, val_data)
+        if sum(val_predict) == 0:
+            print('==> model predict only one label for val data ', data_name, model_name, seed, reweigh_method, weight_base)
 
+        validate_df['Y_pred_scores'] = val_predict
         opt_thres = find_optimal_thres(validate_df, opt_obj='BalAcc', num_thresh=n_thres)
         cur_thresh = opt_thres['thres']
 
@@ -63,6 +67,84 @@ def search_inter_degree_scc(settings, degree_try, sp_pre, reverse_try, left=0.01
         print('++ no model found', settings[6], settings[7], settings[4], settings[5], degree_try)
         return None
 
+def search_best_point_degree(settings, degrees, sp_diff_max=0.001):
+    best_degree = None
+    best_sp = 10
+    best_thres = None
+    best_model = None
+    best_acc = None
+    for degree_try in degrees:
+        res_try = get_sp(settings, degree_try)
+
+        if res_try is not None:
+            model_try, thres_try, sp_try, acc_try = res_try
+            # print('==>try', degree_try, sp_try)
+            if abs(sp_try) < sp_diff_max and acc_try > 0.5:
+                best_degree = degree_try
+                best_sp = sp_try
+                best_thres = thres_try
+                best_model = model_try
+                best_acc = acc_try
+                # print('==>done')
+                break
+            elif abs(sp_try) <= abs(best_sp) and abs(sp_try) > 0:
+                best_degree = degree_try
+                best_sp = sp_try
+                best_thres = thres_try
+                best_model = model_try
+                best_acc = acc_try
+
+            # print('==> current', best_sp)
+
+    return (best_model, best_thres, best_degree, best_sp, best_acc)
+
+def search_opt_degree(settings, degrees_list=[x/10 for x in range(1, 21)], pre_sp=None, count_iter=1, sp_diff_max=0.001):
+    # print('--->search between', min(degrees_list), max(degrees_list))
+    pre_sp = pre_sp or 1
+    best_model, best_thres, best_degree, best_sp, best_acc = search_best_point_degree(settings, degrees_list)
+    if best_degree is None:
+        print('Error in degree search!')
+        return None
+    elif abs(best_sp) <= sp_diff_max:
+        # print('Done!')
+        # print('f(%s) = %f' % (best_degree, best_sp))
+        return (best_model, best_thres, best_degree, best_sp, best_acc)
+    elif abs(pre_sp) - abs(best_sp) <= 0.0001:
+        # print('Stop!')
+        # print('f(%s) = %f' % (best_degree, best_sp))
+        return (best_model, best_thres, best_degree, best_sp, best_acc)
+    else: #search deeper
+        # print('focus point', best_degree, best_sp)
+        left_try = max(0.01/count_iter, best_degree - 0.05/count_iter)
+        right_try = best_degree + 0.05/count_iter
+        left_res = get_sp(settings, left_try)
+        right_res = get_sp(settings, right_try)
+        middle_bound = int(best_degree * 100 * count_iter)
+
+        if left_res is not None and right_res is not None:
+            _, _, sp_left, _ = left_res
+            _, _, sp_right, _ = right_res
+            left_degree = max(0.01/count_iter, best_degree - 0.1 / count_iter)
+            right_degree = best_degree + 0.1 / count_iter
+            left_bound = int(left_degree*100*count_iter)
+            right_bound = int(right_degree*100*count_iter)
+            if abs(sp_left) < abs(sp_right):
+                next_degrees = [x/100/count_iter for x in range(left_bound, middle_bound)]
+            else:
+                next_degrees = [x/100/count_iter for x in range(middle_bound, right_bound)]
+
+        elif left_res is not None:
+            left_degree = max(0.01/count_iter, best_degree - 0.1 / count_iter)
+            left_bound = int(left_degree * 100 * count_iter)
+            next_degrees = [x/100/count_iter for x in range(left_bound, middle_bound)]
+        elif right_res is not None: # right_res is not None
+            right_degree = best_degree + 0.1 / count_iter
+            right_bound = int(right_degree * 100 * count_iter)
+            next_degrees = [x/100/count_iter for x in range(middle_bound, right_bound)]
+        else:
+            raise ValueError('left and right temp degrees are both invalid!')
+        return search_opt_degree(settings, next_degrees, pre_sp=best_sp, count_iter=count_iter*10)
+
 def search_inter_degree_omn(settings, low=0, high=2, epsilon = 0.02, y_col='Y'):
     learner, train_df, features, validate_df, reweigh_method, weight_base, seed, model_name, cur_path, _ = settings
 
@@ -76,7 +158,11 @@ def search_inter_degree_omn(settings, low=0, high=2, epsilon = 0.02, y_col='Y'):
     Y_train = np.array(train_df[y_col])
 
     val_data = validate_df[features]
-    validate_df['Y_pred_scores'] = generate_model_predictions(init_model, val_data)
+    val_predict = generate_model_predictions(init_model, val_data)
+    if sum(val_predict) == 0:
+        print('==> model predict only one label for val data ', data_name, model_name, seed, reweigh_method, weight_base)
+
+    validate_df['Y_pred_scores'] = val_predict
     validate_df['Y_pred'] = validate_df['Y_pred_scores'].apply(lambda x: int(x > init_thresh))
     init_sp = eval_sp(validate_df, 'Y_pred')
 
@@ -95,7 +181,12 @@ def search_inter_degree_omn(settings, low=0, high=2, epsilon = 0.02, y_col='Y'):
         weights = compute_weights(train_df, reweigh_method, weight_base, omn_lam=mid)
         cur_model = learner.fit(train_data, Y_train, features, seed, weights)
         if cur_model is not None:
-            validate_df['Y_pred_mid'] = generate_model_predictions(cur_model, val_data)
+            val_predict = generate_model_predictions(cur_model, val_data)
+            if sum(val_predict) == 0:
+                print('==> model predict only one label for val data ', data_name, model_name, seed, reweigh_method,
+                      weight_base)
+            validate_df['Y_pred_mid'] = val_predict
+
             model_prob = validate_df['Y_pred_mid'].unique()
             if len(model_prob) > 5: # no reasonable probability outputted
                 opt_thres = find_optimal_thres(validate_df, opt_obj='BalAcc', pred_col='Y_pred_mid', num_thresh=n_thres)
@@ -159,7 +250,11 @@ def retrain_model_with_weights_once(settings, input_degree, use_weight=True, y_c
 
     if best_model is not None:
         val_data = validate_df[features]
-        validate_df['Y_pred_scores'] = generate_model_predictions(best_model, val_data)
+        val_predict  = generate_model_predictions(best_model, val_data)
+        if sum(val_predict) == 0:
+            print('==> model predict only one label for val data ', data_name, model_name, seed, reweigh_method, weight_base)
+        validate_df['Y_pred_scores'] = val_predict
+
         opt_thres = find_optimal_thres(validate_df, opt_obj='BalAcc', num_thresh=n_thres)
         best_threshold = opt_thres['thres']
 
@@ -225,16 +320,20 @@ def retrain_ML_with_weights(data_name, seed, model_name, reweigh_method, weight_
         settings = (learner, train_df, features, validate_df, reweigh_method, weight_base, seed, model_name, data_name, cc_par)
         if input_degree: # user-specified intervention degree
             res = retrain_model_with_weights_once(settings, input_degree)
-        else: # search the optimal intervention degree automatically
-            if data_name == 'cardio':
-                cur_left = 11
-                cur_right = 12
-                cur_step = 0.1
-            else:
-                cur_left = 0.01
-                cur_right = 2
-                cur_step = 0.01
-            res = search_inter_degree_scc(settings, None, None, None, left=cur_left, right=cur_right, step=cur_step)
+        else:
+            # old search the optimal intervention degree
+            # if data_name == 'cardio':
+            #     cur_left = 11
+            #     cur_right = 12
+            #     cur_step = 0.1
+            # else:
+            #     cur_left = 0.01
+            #     cur_right = 2
+            #     cur_step = 0.01
+            # res = search_inter_degree_scc(settings, None, None, None, left=cur_left, right=cur_right, step=cur_step)
+
+            # new calibration of the weights
+            res = search_opt_degree(settings)
 
     elif reweigh_method == 'cap':
         start = timeit.default_timer()
@@ -243,19 +342,26 @@ def retrain_ML_with_weights(data_name, seed, model_name, reweigh_method, weight_
     else:
         raise ValueError('Not supported methods! CHOOSE FROM [scc, omn, kam, cap].')
 
+
     end = timeit.default_timer()
     time = end - start
 
     if res is not None:
         best_model, best_threshold, best_degree, best_sp, best_acc = res
-        # print('++++ Best', model_name, best_degree, best_acc, best_sp, '++++')
+        # print('++++ Best val', seed, model_name, best_degree, best_acc, best_sp, '++++')
 
         res_dict = {'time': time, 'BalAcc': best_acc, 'thres': best_threshold, 'degree': best_degree, 'SPDiff': best_sp}
         save_json(res_dict, '{}par-{}-{}-{}-{}.json'.format(cur_dir, model_name, seed, reweigh_method, weight_base))
 
         test_data = test_df[features]
-        test_df['Y_pred'] = generate_model_predictions(best_model, test_data, best_threshold)
+        test_predict = generate_model_predictions(best_model, test_data, best_threshold)
+        if sum(test_predict) == 0:
+            print('==> model predict only one label for test data ', data_name, model_name, seed, reweigh_method, weight_base)
+        test_df['Y_pred'] = test_predict
 
+        best_sp_test = eval_sp(test_df, 'Y_pred')
+        eval_res = eval_settings(test_df, sensi_col, 'Y_pred')['all']
+        print('++++ Best over test', model_name, best_degree, best_sp_test, eval_res['DI'], eval_res['BalAcc'],'++++')
         dump(best_model, '{}{}-{}-{}-{}.joblib'.format(cur_dir, model_name, seed, reweigh_method, weight_base))
 
         test_df[[sensi_col, 'Y', 'Y_pred']].to_csv('{}pred-{}-{}-{}-{}.csv'.format(cur_dir, model_name, seed, reweigh_method, weight_base), index=False)
@@ -266,7 +372,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train weighted ML models")
     parser.add_argument("--run", type=str, default='parallel',
                         help="setting of 'parallel' for system evaluation or 'serial' execution for unit test.")
-    parser.add_argument("--data", type=str, default='all',
+    parser.add_argument("--data", type=str, default='syn',
                         help="name of datasets over which the script is running. Default is for all the datasets.")
     parser.add_argument("--set_n", type=int, default=None,
                         help="number of datasets over which the script is running. Default is 10.")
@@ -275,27 +381,41 @@ if __name__ == '__main__':
 
     parser.add_argument("--weight", type=str, default='scc',
                         help="which weighing method to use in training ML models.")
-    parser.add_argument("--base", type=str, default='one',
+    parser.add_argument("--base", type=str, default='kam',
                         help="which base weights to combine in computing the final weights. For scc+kam and scc+omn, set the base as kam or omn.")
     parser.add_argument("--degree", type=float, default=None,
                         help="additional weights in OmniFair and SCC. Default is None for all the datasets and will be searched for optimal value automatically.")
-    parser.add_argument("--exec_n", type=int, default=20,
+    parser.add_argument("--exec_n", type=int, default=15,
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
-    datasets = ['meps16', 'lsac', 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
-    seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+    datasets = ['meps16', 'lsac', 'bank', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI'] #'cardio',
     # seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100,
     #          923]
+    seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+
     models = ['lr', 'tr']
+
+
+    if args.exec_n is None:
+        raise ValueError(
+            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
+    elif type(args.exec_n) == str:
+        raise ValueError(
+            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
+    else:
+        n_exec = int(args.exec_n)
+        seeds = seeds[:n_exec]
 
     if args.data == 'all':
         pass
     elif args.data in datasets:
         datasets = [args.data]
+    elif 'syn' in args.data:
+        datasets = ['syn{}'.format(x) for x in seeds]
     else:
         raise ValueError(
-            'The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
+            'The input "data" is not valid. CHOOSE FROM ["syn", "lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
 
     if args.set_n is not None:
         if type(args.set_n) == str:
@@ -318,15 +438,6 @@ if __name__ == '__main__':
     else:
         raise ValueError('The input "model" is not valid. CHOOSE FROM ["lr", "tr"].')
 
-    if args.exec_n is None:
-        raise ValueError(
-            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
-    elif type(args.exec_n) == str:
-        raise ValueError(
-            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
-    else:
-        n_exec = int(args.exec_n)
-        seeds = seeds[:n_exec]
 
     repo_dir = os.path.dirname(os.path.abspath(__file__))
     res_path = repo_dir + '/intermediate/models/'

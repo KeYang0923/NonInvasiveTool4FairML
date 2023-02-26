@@ -40,16 +40,16 @@ def eval_min_violation(data_name, seeds, models, res_path='../intermediate/model
                 sim_indiv = []
                 group_n = test_df.query('A=={}'.format(group_i)).shape[0]
                 for label_i in labels:
-                    vio_mean = cc_par['mean_train_G{}_L{}'.format(group_i, label_i)]
-                    vio_col = 'vio_G{}_L{}'.format(group_i, label_i)
+                    vio_mean = cc_par['mean_train_G{}_L{}'.format(abs(group_i - 1), label_i)]
+                    vio_col = 'vio_G{}_L{}'.format(abs(group_i - 1), label_i)
                     vio_min = test_df[vio_col].min()
-                    if vio_mean > 0.1: # strong CC rules learned
+                    # if vio_mean > 0.1: # strong CC rules learned
                         # similar individuals are the ones from other groups with minimal violations
-                        cur_sim_df = test_df.query('{}=={} and A=={}'.format(vio_col, vio_min, group_i))
-                        cur_index = list(cur_sim_df.index)
+                    cur_sim_df = test_df.query('{}=={} and A=={}'.format(vio_col, vio_min, group_i))
+                    cur_index = list(cur_sim_df.index)
 
-                    else:
-                        cur_index = []
+                    # else:
+                    #     cur_index = []
                     sim_indiv = list(set(sim_indiv).union(set(cur_index)))
 
                 key_groups.append(sim_indiv)
@@ -102,15 +102,15 @@ def eval_min_violation(data_name, seeds, models, res_path='../intermediate/model
                     print('--> no', scc_test_file)
 
     if label is None:
-        eval_suffix = 'sim-both-{}'.format(group_i)
+        all_eval_suffix = 'sim-both-all'
     elif label == 'pos':
-        eval_suffix = 'sim-pos-{}'.format(group_i)
+        all_eval_suffix = 'sim-pos-all'
     elif label == 'neg':
-        eval_suffix = 'sim-neg-{}'.format(group_i)
+        all_eval_suffix = 'sim-neg-all'
     else:
         raise ValueError('The "label" is need to be in [None, pos, neg].')
-    res_df.to_csv('{}n-{}-{}.csv'.format(eval_path, eval_suffix, data_name), index=False)
-    print('similar res is saved at', '{}n-{}-{}.csv'.format(eval_path, eval_suffix, data_name))
+    res_df.to_csv('{}n-{}-{}.csv'.format(eval_path, all_eval_suffix, data_name), index=False)
+    print('similar res is saved at', '{}n-{}-{}.csv'.format(eval_path, all_eval_suffix, data_name))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Extract evaluation results for similar individuals")

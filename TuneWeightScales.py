@@ -181,6 +181,7 @@ def retrain_ML_models_all_degrees(data_name, seed, model_name, reweigh_method, w
         cur_degree += degree_step
     if verbose:
         print_f.close()
+        print('save degree ', data_name, model_name, seed, reweigh_method, weight_base)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Iterate all intervention degrees on real data")

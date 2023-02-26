@@ -133,13 +133,16 @@ class XgBoost(Learner):
         return model
 
 def generate_model_predictions(cur_model, cur_data, opt_thres=None):
-    pos_ind = np.where(cur_model.best_estimator_.named_steps['learner'].classes_ == 1.0)[0][0]
-    Y_pred_proba = cur_model.predict_proba(cur_data)[:, pos_ind].reshape(-1, 1)
+    try:
+        pos_ind = np.where(cur_model.best_estimator_.named_steps['learner'].classes_ == 1.0)[0][0]
 
-    if opt_thres is not None:
-        return [int(y > opt_thres) for y in Y_pred_proba]
-    else:
-        return Y_pred_proba
+        Y_pred_proba = cur_model.predict_proba(cur_data)[:, pos_ind].reshape(-1, 1)
+        if opt_thres is not None:
+            return [int(y > opt_thres) for y in Y_pred_proba]
+        else:
+            return Y_pred_proba
+    except:
+        return [0 for _ in range(cur_data.shape[0])]
 
 
 def compute_bal_acc(y_true, y_pred, label_order=[0, 1]):
@@ -217,8 +220,10 @@ def model_trainer(data_name, seed, model_name, sensi_col_in_training=True, res_p
     if model is not None:
         # for optimal threshold selection
         validate_df['Y'] = Y_val
-        validate_df['Y_pred_scores'] = generate_model_predictions(model, val_data)
-
+        val_predict = generate_model_predictions(model, val_data)
+        if sum(val_predict) == 0:
+            print('==> model predict only one label for ', data_name, model_name, seed)
+        validate_df['Y_pred_scores'] = val_predict
         dump(model, '{}{}-{}.joblib'.format(cur_dir, model_name, seed))
 
         # optimize threshold first
@@ -239,8 +244,10 @@ def model_trainer(data_name, seed, model_name, sensi_col_in_training=True, res_p
             pred_col_i = 'Y_pred_g{}'.format(group_i)
             if group_model is not None:
                 # for optimal threshold selection
-                group_val_df[pred_col_i] = generate_model_predictions(group_model, group_val_data)
-
+                cur_pred_group = generate_model_predictions(group_model, group_val_data)
+                if sum(cur_pred_group) == 0:
+                    print('==> model predict only one label for group ', group_i, data_name, model_name, seed)
+                group_val_df[pred_col_i] = cur_pred_group
                 if data_name in ['bank', 'cardio'] and group_i == 1 and model_name == 'tr': # for a more finite search space
                     n_thres = 1000
                 else:
@@ -259,6 +266,8 @@ def model_trainer(data_name, seed, model_name, sensi_col_in_training=True, res_p
 
         if verbose:
             Y_train_pred = generate_model_predictions(model, train_data, opt_thres=opt_thres['thres'])
+            if sum(Y_train_pred) == 0:
+                print('==> model predict only one label for training data ', data_name, model_name, seed)
             score_train = learner.score(Y_train, Y_train_pred)
             print('---' * 8, data_name, seed, model_name, '---' * 8)
             print(learner.scoring, "on train data: ", score_train)
@@ -274,29 +283,44 @@ if __name__ == '__main__':
     parser.add_argument("--sensi", type=int, default=1,
                         help="whether to include the sensitive attribute as a feature in training ML models.")
     # parameters for running over smaller number of datasets and few number of executions
-    parser.add_argument("--data", type=str, default='all',
+    parser.add_argument("--data", type=str, default='syn',
                         help="name of datasets over which the script is running. Default is for all the datasets.")
     parser.add_argument("--set_n", type=int, default=None,
                         help="number of datasets over which the script is running. Default is 10.")
     parser.add_argument("--model", type=str, default='all',
                         help="extract results for all the models as default. Otherwise, only extract the results for the input model from ['lr', 'tr'].")
 
-    parser.add_argument("--exec_n", type=int, default=20,
+    parser.add_argument("--exec_n", type=int, default=15,
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
     datasets = ['meps16', 'lsac', 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
-    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100,
-             923]
+    # seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100,
+    #          923]
+
+    seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+
     models = ['lr', 'tr']
+
+    if args.exec_n is None:
+        raise ValueError(
+            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
+    elif type(args.exec_n) == str:
+        raise ValueError(
+            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
+    else:
+        n_exec = int(args.exec_n)
+        seeds = seeds[:n_exec]
 
     if args.data == 'all':
         pass
     elif args.data in datasets:
         datasets = [args.data]
+    elif 'syn' in args.data:
+        datasets = ['syn{}'.format(x) for x in seeds]
     else:
         raise ValueError(
-            'The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
+            'The input "data" is not valid. CHOOSE FROM ["syn", "lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
 
     if args.set_n is not None:
         if type(args.set_n) == str:
@@ -320,15 +344,6 @@ if __name__ == '__main__':
         raise ValueError('The input "model" is not valid. CHOOSE FROM ["lr", "tr"].')
 
 
-    if args.exec_n is None:
-        raise ValueError(
-            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
-    elif type(args.exec_n) == str:
-        raise ValueError(
-            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
-    else:
-        n_exec = int(args.exec_n)
-        seeds = seeds[:n_exec]
 
     repo_dir = os.path.dirname(os.path.abspath(__file__))
     res_path = repo_dir + '/intermediate/models/'

@@ -1,0 +1,21 @@
+{
+  "target": "Y",
+  "target_positive_value": 1,
+  "sensitive_feature": "A",
+  "size": 10000,
+  "n_features": 3,
+  "continuous_features": [
+    "X1",
+    "X2"
+  ],
+  "categorical_features": [],
+  "protected_group": [
+    0
+  ],
+  "group_perc": 20.0,
+  "pos_perc": 53.8,
+  "feature_name_mapping": {
+    "X1": "X1",
+    "X2": "X2"
+  }
+}

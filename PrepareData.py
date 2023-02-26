@@ -71,17 +71,43 @@ def prepare_data_for_ML_models(data_name, seeds, cur_path, n_bins=10, sensi_col=
         data_obj = ACSMobility(path=cur_path)
     elif data_name == 'ACSI':
         data_obj = ACSIncomePovertyRatio(path=cur_path)
+    elif 'syn' in data_name:
+        pass
     else:
-        raise ValueError('The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACST", "ACSP", "ACSH", "ACSM", "ACSI"].')
+        raise ValueError('The input "data" is not valid. CHOOSE FROM ["syn", "lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACST", "ACSP", "ACSH", "ACSM", "ACSI"].')
     meta_file = '{}{}.json'.format(data_path, data_name)
-    if os.path.exists(meta_file):
-        meta_info = read_json(meta_file)
+
+    if 'syn' in data_name:
         orig_df = pd.read_csv('{}{}.csv'.format(data_path, data_name))
-        print('Read existing processed ', data_name)
-    else:
-        orig_df = data_obj.preprocess(data_path)
-        save_json(data_obj.meta_info, meta_file)
-        meta_info = data_obj.meta_info
+        num_atts = ['X1', 'X2']
+        cat_atts = []
+        group_df = orig_df.query('A==0')
+        pos_df = group_df.query('Y==1')
+
+        meta_info = {'target': 'Y',
+                      'target_positive_value': 1,
+                      'sensitive_feature': 'A',
+                      'size': orig_df.shape[0],
+                      'n_features': len(cat_atts)+ len(num_atts) + 1,
+                      'continuous_features': num_atts,
+                      'categorical_features': cat_atts,
+                      'protected_group': [0],
+                      'group_perc': round(group_df.shape[0] / orig_df.shape[0] * 100, 1),
+                      'pos_perc': round(pos_df.shape[0] / group_df.shape[0] * 100, 1),
+                      'feature_name_mapping': {'X1': 'X1', 'X2': 'X2'}
+                     }
+        save_json(meta_info, meta_file)
+    else: # for real datasets
+        if os.path.exists(meta_file):
+            meta_info = read_json(meta_file)
+            orig_df = pd.read_csv('{}{}.csv'.format(data_path, data_name))
+            print('Read existing processed json file for ', data_name)
+        else:
+            orig_df = data_obj.preprocess(data_path)
+
+            save_json(data_obj.meta_info, meta_file)
+            meta_info = data_obj.meta_info
+
     cur_dir = res_path + data_name + '/'
     make_folder(cur_dir)
 
@@ -599,26 +625,40 @@ if __name__ == '__main__':
     parser.add_argument("--run", type=str, default='parallel',
                         help="setting of 'parallel' for system execution or 'serial' execution for unit test.")
     # parameters for running over smaller number of datasets and few number of executions
-    parser.add_argument("--data", type=str, default='all',
+    parser.add_argument("--data", type=str, default='syn',
                         help="name of datasets over which the script is running. Default is for all the datasets.")
     parser.add_argument("--set_n", type=int, default=None,
                         help="number of datasets over which the script is running. Default is 10.")
     parser.add_argument("--bin_n", type=int, default=10,
                         help="number of binns in categorizing data. Required for CAPUCHIN. Default is 10 for all the datasets.")
-    parser.add_argument("--exec_n", type=int, default=20,
+    parser.add_argument("--exec_n", type=int, default=15,
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
     datasets = ['meps16', 'lsac', 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
-    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+    # seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100,
+    #          923]
+    seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+
+    if args.exec_n is None:
+        raise ValueError(
+            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
+    elif type(args.exec_n) == str:
+        raise ValueError(
+            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
+    else:
+        n_exec = int(args.exec_n)
+        seeds = seeds[:n_exec]
 
     if args.data == 'all':
         pass
     elif args.data in datasets:
         datasets = [args.data]
+    elif 'syn' in args.data:
+        datasets = ['syn{}'.format(x) for x in seeds]
     else:
         raise ValueError(
-            'The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
+            'The input "data" is not valid. CHOOSE FROM ["syn", "lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
 
     if args.set_n is not None:
         if type(args.set_n) == str:
@@ -634,15 +674,6 @@ if __name__ == '__main__':
                 raise ValueError(
                     'The input "set_n" requires non-zero integer. Use "--set_n 1" for running over a single dataset.')
 
-    if args.exec_n is None:
-        raise ValueError(
-            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
-    elif type(args.exec_n) == str:
-        raise ValueError(
-            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
-    else:
-        n_exec = int(args.exec_n)
-        seeds = seeds[:n_exec]
 
     repo_dir = os.path.dirname(os.path.abspath(__file__))
 

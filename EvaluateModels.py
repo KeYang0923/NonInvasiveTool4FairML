@@ -173,8 +173,14 @@ def eval_predicitons(data_name, seed, model_name, setting, res_path='../intermed
             cur_model_file = '{}{}-{}{}.joblib'.format(cur_dir, model_name, seed, name_suffix)
             opt_model = load(cur_model_file)
 
-            test_df[cur_pred_col] = generate_model_predictions(opt_model, test_data)
-            val_df[cur_pred_col] = generate_model_predictions(opt_model, val_data)
+            test_predict = generate_model_predictions(opt_model, test_data)
+            if sum(test_predict) == 0:
+                print('==> model predict only one label for test data in MCC ', cur_pred_col, data_name, model_name, seed)
+            test_df[cur_pred_col] = test_predict
+            val_predict = generate_model_predictions(opt_model, val_data)
+            if sum(val_predict) == 0:
+                print('==> model predict only one label for val data in MCC ', cur_pred_col, data_name, model_name, seed)
+            val_df[cur_pred_col] = val_predict
 
         test_df['Y_pred_A'] = test_df[[sensi_col, 'Y_pred_G0', 'Y_pred_G1']].apply(lambda x: assign_pred_sensi(x, [model_par['thres_g0'], model_par['thres_g1']]), axis=1)
         test_df['Y_pred'] = test_df['Y_pred'].apply(lambda x: int(x > model_par['thres']))
@@ -216,19 +222,30 @@ def eval_predicitons(data_name, seed, model_name, setting, res_path='../intermed
         save_json(par_dict, '{}par-{}-{}-{}.json'.format(cur_dir, model_name, seed, setting))
 
     elif setting == 'single':
-        weights = ['scc', 'scc', 'omn', 'kam']
-        bases = ['one', 'kam', 'one', 'one']
-        if model_name == 'tr':
-            weights = weights + ['cap']
-            bases = bases + ['one']
+        # weights = ['scc', 'scc', 'omn', 'kam']
+        # bases = ['one', 'kam', 'one', 'one']
+        # if model_name == 'tr':
+        #     weights = weights + ['cap']
+        #     bases = bases + ['one']
+
+        # # for model aware weights
+        # weights = ['scc', 'omn']
+        # bases = ['kam-aware', 'one-aware']
+
+        # for synthetic data
+        weights = ['scc']
+        bases = ['kam']
+
         for reweight_method, weight_base in zip(weights, bases):
             eval_res = {}
             test_file = '{}pred-{}-{}-{}-{}.csv'.format(cur_dir, model_name, seed, reweight_method, weight_base)
             if os.path.exists(test_file):
                 test_df = pd.read_csv(test_file)
                 eval_res[reweight_method.upper()] = eval_settings(test_df, sensi_col, 'Y_pred')
-
-                save_json(eval_res, '{}eval-{}-{}-{}-{}.json'.format(cur_dir, model_name, seed, reweight_method, weight_base))
+                save_json(eval_res, '{}eval-{}-{}-{}-{}.json'.format(cur_dir, model_name, seed, reweight_method,
+                                                                           weight_base))
+                # # for model aware weights
+                # save_json(eval_res, '{}eval-aware-{}-{}-{}-{}.json'.format(cur_dir, model_name, seed, reweight_method, weight_base))
             else:
                 print('++ no model for', test_file)
 
@@ -239,7 +256,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Eval fairness interventions on real data")
     parser.add_argument("--run", type=str, default='parallel',
                         help="setting of 'parallel' for system evaluation or 'serial' execution for unit test.")
-    parser.add_argument("--data", type=str, default='all',
+    parser.add_argument("--data", type=str, default='syn',
                         help="name of datasets over which the script is running. Default is for all the datasets.")
     parser.add_argument("--set_n", type=int, default=None,
                         help="number of datasets over which the script is running. Default is 10.")
@@ -248,24 +265,37 @@ if __name__ == '__main__':
 
     parser.add_argument("--setting", type=str, default='all',
                         help="which method to evaluate. CHOOSE FROM '[multi, single]'.")
-    parser.add_argument("--exec_n", type=int, default=20,
+    parser.add_argument("--exec_n", type=int, default=15,
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
-    datasets = ['meps16', 'lsac', 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
+    datasets = ['meps16', 'lsac', 'bank', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI'] #'cardio',
 
-    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+    # seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+    seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
 
     models = ['lr', 'tr']
     settings = ['multi', 'single']
+
+    if args.exec_n is None:
+        raise ValueError(
+            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
+    elif type(args.exec_n) == str:
+        raise ValueError(
+            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
+    else:
+        n_exec = int(args.exec_n)
+        seeds = seeds[:n_exec]
 
     if args.data == 'all':
         pass
     elif args.data in datasets:
         datasets = [args.data]
+    elif 'syn' in args.data:
+        datasets = ['syn{}'.format(x) for x in seeds]
     else:
         raise ValueError(
-            'The input "data" is not valid. CHOOSE FROM ["lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
+            'The input "data" is not valid. CHOOSE FROM ["syn", "lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
 
     if args.set_n is not None:
         if type(args.set_n) == str:
@@ -294,15 +324,7 @@ if __name__ == '__main__':
     else:
         raise ValueError('The input "setting" is not valid. CHOOSE FROM ["all", "multi", "single"].')
 
-    if args.exec_n is None:
-        raise ValueError(
-            'The input "exec_n" is requried. Use "--exec_n 1" for a single execution.')
-    elif type(args.exec_n) == str:
-        raise ValueError(
-            'The input "exec_n" requires integer. Use "--exec_n 1" for a single execution.')
-    else:
-        n_exec = int(args.exec_n)
-        seeds = seeds[:n_exec]
+
 
     repo_dir = os.path.dirname(os.path.abspath(__file__))
     res_path = repo_dir + '/intermediate/models/'

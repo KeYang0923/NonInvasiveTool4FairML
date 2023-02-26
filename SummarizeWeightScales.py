@@ -28,7 +28,7 @@ def extract_impact_weight_scales(data_name, seeds, models, res_path='../intermed
         model_name = model_i.upper()
         for seed in seeds:
             for reweigh_method, weight_base in zip(scc_weights, scc_bases):
-                degree_file ='{}degrees-{}-{}-{}-{}.txt'.format(cur_dir, model_name, seed, reweigh_method, weight_base)
+                degree_file ='{}degrees-{}-{}-{}-{}.txt'.format(cur_dir, model_i, seed, reweigh_method, weight_base)
                 if os.path.exists(degree_file):
                     f = open(degree_file, "r")
                     while (True):
@@ -36,7 +36,7 @@ def extract_impact_weight_scales(data_name, seeds, models, res_path='../intermed
                         if not line:
                             break
                         cur_res = line.strip().replace('---', '').split(' ')
-                        res_df.loc[res_df.shape[0]] = [data_name, model_name, seed, reweigh_method.upper() + '-' + weight_base.upper(), float(cur_res[0]), float(cur_res[1]), float(cur_res[2])]
+                        res_df.loc[res_df.shape[0]] = [data_name, model_name, seed, reweigh_method.upper() + '-' + weight_base.upper(), float(cur_res[1]), float(cur_res[2]), float(cur_res[3])]
                 else:
                     print('---> no ', degree_file)
             # get the results from the methods without degrees
