@@ -118,6 +118,7 @@ def compute_weights(df, method, sample_base='zero', alpha_g0=2.0, alpha_g1=1.0, 
 def retrain_ML_models_all_degrees(data_name, seed, model_name, reweigh_method, weight_base, verbose, res_path='../intermediate/models/',
                degree_start=0.01, degree_end=2.0, degree_step=0.01,
                data_path='data/processed/', y_col = 'Y', sensi_col='A'):
+    # not support no OPT of CC case
     cur_dir = res_path + data_name + '/'
     repo_dir = res_path.replace('intermediate/models/', '')
 

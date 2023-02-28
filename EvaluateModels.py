@@ -134,27 +134,33 @@ def assign_pred_sensi(x, thres_groups): # assign prediction based on the group m
     else:
         return int(x.iloc[1] > thres_groups[0])
 
-def eval_predicitons(data_name, seed, model_name, setting, res_path='../intermediate/models/',
-                                data_path='data/processed/', sensi_col='A'):
+def eval_predicitons(data_name, seed, model_name, setting,
+                     res_path='../intermediate/models/', cc_opt=True,
+                     model_aware=False,
+                     data_path='data/processed/', sensi_col='A'):
     cur_dir = res_path + data_name + '/'
+    if cc_opt:
+        opt_suffix = ''
+    else:
+        opt_suffix = '-noOPT'
 
     if setting == 'multi':
-        cc_par = read_json('{}par-cc-{}.json'.format(cur_dir, seed))
+        cc_par = read_json('{}par-cc-{}{}.json'.format(cur_dir, seed, opt_suffix))
         vio_cols = ['vio_G{}_L{}'.format(group_i, label_i) for group_i in range(2) for label_i in range(2)]
-        vio_means = [cc_par['mean_train_G{}_L{}'.format(group_i, label_i)] for group_i in range(2) for label_i in range(2)]
+        vio_means = [cc_par['mean_train_G{}_L{}{}'.format(group_i, label_i, opt_suffix)] for group_i in range(2) for label_i in range(2)]
 
         if model_name == 'tr':
             test_df = pd.read_csv('{}test-{}-bin.csv'.format(cur_dir, seed))
             val_df = pd.read_csv('{}val-{}-bin.csv'.format(cur_dir, seed))
 
-            vio_test_df = pd.read_csv('{}test-cc-{}.csv'.format(cur_dir, seed))
-            vio_val_df = pd.read_csv('{}val-cc-{}.csv'.format(cur_dir, seed))
+            vio_test_df = pd.read_csv('{}test-cc-{}{}.csv'.format(cur_dir, seed, opt_suffix))
+            vio_val_df = pd.read_csv('{}val-cc-{}{}.csv'.format(cur_dir, seed, opt_suffix))
 
             test_df[vio_cols] = vio_test_df[vio_cols]
             val_df[vio_cols] = vio_val_df[vio_cols]
         else:
-            val_df = pd.read_csv('{}val-cc-{}.csv'.format(cur_dir, seed))
-            test_df = pd.read_csv('{}test-cc-{}.csv'.format(cur_dir, seed))
+            val_df = pd.read_csv('{}val-cc-{}{}.csv'.format(cur_dir, seed, opt_suffix))
+            test_df = pd.read_csv('{}test-cc-{}{}.csv'.format(cur_dir, seed, opt_suffix))
 
         meta_info = read_json('{}/{}{}.json'.format(repo_dir, data_path, data_name))
         model_par = read_json('{}par-{}-{}.json'.format(cur_dir, model_name, seed))
@@ -203,13 +209,13 @@ def eval_predicitons(data_name, seed, model_name, setting, res_path='../intermed
         test_df['Y_pred_w1'] = test_df['Y_pred_w1'].apply(lambda x: int(x > w1_opt_thres['thres']))
         test_df['Y_pred_w2'] = test_df['Y_pred_w2'].apply(lambda x: int(x > w2_opt_thres['thres']))
 
-        test_df.to_csv('{}test-{}-{}-{}.csv'.format(cur_dir, model_name, seed, setting), index=False)
+        test_df.to_csv('{}test-{}-{}-{}{}.csv'.format(cur_dir, model_name, seed, setting, opt_suffix), index=False)
 
         eval_res = {}
         for pred_y, cur_setting in zip(['Y_pred_min', 'Y_pred_w1', 'Y_pred_w2', 'Y_pred_A', 'Y_pred'], ['MCC-MIN', 'MCC-W1', 'MCC-W2', 'SEP', 'ORIG']):
             eval_res[cur_setting] = eval_settings(test_df, sensi_col, pred_y)
 
-        save_json(eval_res, '{}eval-{}-{}-{}.json'.format(cur_dir, model_name, seed, setting))
+        save_json(eval_res, '{}eval-{}-{}-{}{}.json'.format(cur_dir, model_name, seed, setting, opt_suffix))
 
         par_dict = {'orig': {'thres': model_par['thres'], 'BalAcc': model_par['BalAcc']},
                     'min': {'thres': min_opt_thres['thres'], 'BalAcc': min_opt_thres['BalAcc']},
@@ -219,22 +225,28 @@ def eval_predicitons(data_name, seed, model_name, setting, res_path='../intermed
                             'BalAcc': (model_par['BalAcc_g0'], model_par['BalAcc_g1'])},
                     }
 
-        save_json(par_dict, '{}par-{}-{}-{}.json'.format(cur_dir, model_name, seed, setting))
+        save_json(par_dict, '{}par-{}-{}-{}{}.json'.format(cur_dir, model_name, seed, setting, opt_suffix))
 
     elif setting == 'single':
-        # weights = ['scc', 'scc', 'omn', 'kam']
-        # bases = ['one', 'kam', 'one', 'one']
-        # if model_name == 'tr':
-        #     weights = weights + ['cap']
-        #     bases = bases + ['one']
-
-        # # for model aware weights
-        # weights = ['scc', 'omn']
-        # bases = ['kam-aware', 'one-aware']
-
-        # for synthetic data
-        weights = ['scc']
-        bases = ['kam']
+        if 'syn' in data_name:
+            # for synthetic data
+            weights = ['scc']
+            bases = ['kam']
+        else:
+            if not cc_opt:
+                # no optimization of CC
+                weights = ['scc']
+                bases = ['kam' + opt_suffix]
+            else: # default optimization
+                if not model_aware: # for experiments with right weights
+                    weights = ['scc', 'scc', 'omn', 'kam']
+                    bases = ['one', 'kam', 'one', 'one']
+                    if model_name == 'tr':
+                        weights = weights + ['cap']
+                        bases = bases + ['one']
+                else: # for experiments with model-aware weights
+                    weights = ['scc', 'omn']
+                    bases = ['kam-aware', 'one-aware']
 
         for reweight_method, weight_base in zip(weights, bases):
             eval_res = {}
@@ -242,10 +254,8 @@ def eval_predicitons(data_name, seed, model_name, setting, res_path='../intermed
             if os.path.exists(test_file):
                 test_df = pd.read_csv(test_file)
                 eval_res[reweight_method.upper()] = eval_settings(test_df, sensi_col, 'Y_pred')
-                save_json(eval_res, '{}eval-{}-{}-{}-{}.json'.format(cur_dir, model_name, seed, reweight_method,
-                                                                           weight_base))
-                # # for model aware weights
-                # save_json(eval_res, '{}eval-aware-{}-{}-{}-{}.json'.format(cur_dir, model_name, seed, reweight_method, weight_base))
+                save_json(eval_res, '{}eval-{}-{}-{}-{}.json'.format(cur_dir, model_name, seed, reweight_method, weight_base))
+
             else:
                 print('++ no model for', test_file)
 
@@ -256,7 +266,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Eval fairness interventions on real data")
     parser.add_argument("--run", type=str, default='parallel',
                         help="setting of 'parallel' for system evaluation or 'serial' execution for unit test.")
-    parser.add_argument("--data", type=str, default='syn',
+    parser.add_argument("--data", type=str, default='all',
                         help="name of datasets over which the script is running. Default is for all the datasets.")
     parser.add_argument("--set_n", type=int, default=None,
                         help="number of datasets over which the script is running. Default is 10.")
@@ -265,14 +275,20 @@ if __name__ == '__main__':
 
     parser.add_argument("--setting", type=str, default='all',
                         help="which method to evaluate. CHOOSE FROM '[multi, single]'.")
-    parser.add_argument("--exec_n", type=int, default=15,
+    parser.add_argument("--exec_n", type=int, default=10,
                         help="number of executions with different random seeds. Default is 20.")
+
+    parser.add_argument("--opt", type=int, default=0,
+                        help="whether to apply the optimization for CC tool.")
+
+    parser.add_argument("--aware", type=int, default=0,
+                        help="whether to evaluate for the model aware weights.")
     args = parser.parse_args()
 
     datasets = ['meps16', 'lsac', 'bank', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI'] #'cardio',
 
-    # seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
-    seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+    # seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
 
     models = ['lr', 'tr']
     settings = ['multi', 'single']
@@ -335,7 +351,7 @@ if __name__ == '__main__':
             for seed in seeds:
                 for model_i in models:
                     for setting_i in settings:
-                        tasks.append([data_name, seed, model_i, setting_i, res_path])
+                        tasks.append([data_name, seed, model_i, setting_i, res_path, args.opt, args.aware])
         with Pool(cpu_count()//2) as pool:
             pool.starmap(eval_predicitons, tasks)
     else:

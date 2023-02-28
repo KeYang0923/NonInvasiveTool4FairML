@@ -9,7 +9,8 @@ import pandas as pd
 warnings.filterwarnings('ignore')
 
 
-def extract_evaluations(data_name, seeds, models, res_path='../intermediate/models/', eval_name_suffix='',
+def extract_evaluations(data_name, seeds, models,
+                        res_path='../intermediate/models/', eval_name_suffix='',
                         eval_path='eval/'):
 
     repo_dir = res_path.replace('intermediate/models/', '')
@@ -18,17 +19,22 @@ def extract_evaluations(data_name, seeds, models, res_path='../intermediate/mode
 
     group_eval_metrics = ['AUC', 'ACC', 'SR', 'BalAcc']
     overall_metrics = ['BalAcc', 'DI', 'EQDiff', 'AvgOddsDiff', 'SPDiff', 'FPRDiff', 'FNRDiff', 'ERRDiff']
-
-    # scc_weights = ['scc', 'scc', 'omn', 'kam']
-    # scc_bases = ['one', 'kam', 'one', 'one']
-
-    # for model aware weights
-    # scc_weights = ['scc', 'omn']
-    # scc_bases = ['kam-aware', 'one-aware']
-
-    # for synthetic data
-    scc_weights = ['scc']
-    scc_bases = ['kam']
+    if 'syn' in data_name:
+        # for synthetic data
+        scc_weights = ['scc']
+        scc_bases = ['kam']
+    else: # for real datasets
+        if 'aware' in eval_name_suffix:
+            # for model aware weights
+            scc_weights = ['scc', 'omn']
+            scc_bases = ['kam'+eval_name_suffix, 'one'+eval_name_suffix]
+        elif 'noOPT' in eval_name_suffix:
+            # no optimization of CC
+            scc_weights = ['scc']
+            scc_bases = ['kam' + eval_name_suffix]
+        else: # default comparison
+            scc_weights = ['scc', 'scc', 'omn', 'kam']
+            scc_bases = ['one', 'kam', 'one', 'one']
 
     res_df = pd.DataFrame(columns=['data', 'model', 'seed', 'method', 'group', 'metric', 'value'])
     cur_dir = res_path + data_name + '/'
@@ -37,25 +43,29 @@ def extract_evaluations(data_name, seeds, models, res_path='../intermediate/mode
             scc_weights = scc_weights + ['cap']
             scc_bases = scc_bases + ['one']
         for seed in seeds:
-            # get multi results
-            eval_mcc_name = '{}eval{}-{}-{}-{}.json'.format(cur_dir, eval_name_suffix, model_name, seed, 'multi')
-            if os.path.exists(eval_mcc_name):
-                eval_res = read_json(eval_mcc_name)
-
-                for mcc_i in ['MCC-MIN', 'MCC-W1', 'MCC-W2', 'SEP', 'ORIG']:
-
-                    for group in ['all', 'G0', 'G1']:
-                        base = [data_name, model_name.upper(), seed, mcc_i, group]
-                        for metric_i in group_eval_metrics:
-                            res_df.loc[res_df.shape[0]] = base + [metric_i, eval_res[mcc_i][group][metric_i]]
-                    for metric_i in overall_metrics:
-                        res_df.loc[res_df.shape[0]] = [data_name, model_name.upper(), seed, mcc_i, 'all'] + [metric_i, eval_res[mcc_i]['all'][metric_i]]
+            if 'aware' in eval_name_suffix:
+                # skip the results for multi model cases
+                pass
             else:
-                print('--> no eval for', eval_mcc_name)
+                # get multi results
+                eval_mcc_name = '{}eval-{}-{}-{}{}.json'.format(cur_dir, model_name, seed, 'multi', eval_name_suffix)
+                if os.path.exists(eval_mcc_name):
+                    eval_res = read_json(eval_mcc_name)
+
+                    for mcc_i in ['MCC-MIN', 'MCC-W1', 'MCC-W2', 'SEP', 'ORIG']:
+
+                        for group in ['all', 'G0', 'G1']:
+                            base = [data_name, model_name.upper(), seed, mcc_i, group]
+                            for metric_i in group_eval_metrics:
+                                res_df.loc[res_df.shape[0]] = base + [metric_i, eval_res[mcc_i][group][metric_i]]
+                        for metric_i in overall_metrics:
+                            res_df.loc[res_df.shape[0]] = [data_name, model_name.upper(), seed, mcc_i, 'all'] + [metric_i, eval_res[mcc_i]['all'][metric_i]]
+                else:
+                    print('--> no eval for', eval_mcc_name)
 
             # get single results
             for weight_i, base_i in zip(scc_weights, scc_bases):
-                eval_single_name = '{}eval{}-{}-{}-{}-{}.json'.format(cur_dir, eval_name_suffix, model_name, seed, weight_i, base_i)
+                eval_single_name = '{}eval-{}-{}-{}-{}.json'.format(cur_dir, model_name, seed, weight_i, base_i)
                 method_name = weight_i.upper() + '-' + base_i.upper()
                 if os.path.exists(eval_single_name):
                     eval_res = read_json(eval_single_name)
@@ -76,24 +86,24 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Extract evaluation results")
     parser.add_argument("--run", type=str, default='parallel',
                         help="setting of 'parallel' for system evaluation or 'serial' execution for unit test.")
-    parser.add_argument("--data", type=str, default='syn',
+    parser.add_argument("--data", type=str, default='all',
                         help="name of datasets over which the script is running. Default is for all the datasets.")
     parser.add_argument("--set_n", type=int, default=None,
                         help="number of datasets over which the script is running. Default is 10.")
     parser.add_argument("--model", type=str, default='all',
                         help="extract results for all the models as default. Otherwise, only extract the results for the input model from ['lr', 'tr'].")
-    parser.add_argument("--eval", type=str, default='', #-aware, -sim-both-0,
+    parser.add_argument("--eval", type=str, default='-noOPT', #-aware, '',
                         help="the setting of evaluation. Default is running over the entire test set. "
                              "If '-min-0.5', '-sort-0.5', '-min_g0-0.5', or '-sort_g0-0.5' is specified, get the evaluation results for erroneous test data. "
                              "If '-min' is specified, get the evaluation results for similar individuals.")
-    parser.add_argument("--exec_n", type=int, default=15,
+    parser.add_argument("--exec_n", type=int, default=10,
                         help="number of executions with different random seeds. Default is 20.")
     args = parser.parse_args()
 
     datasets = ['meps16', 'lsac', 'bank', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI'] #'cardio',
 
-    # seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
-    seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+    # seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
 
     models = ['lr', 'tr']
 

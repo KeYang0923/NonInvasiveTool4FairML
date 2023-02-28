@@ -23,7 +23,7 @@ def get_sp(settings, inter_degree, reverse_flag=False, y_col = 'Y'):
 
     model = learner.fit(train_data, Y_train, features, seed, weights)
 
-    if ('bank' in cur_path or 'cardio' in cur_path) and model_name == 'tr':  # for a more finite search space
+    if 'bank' in cur_path or 'cardio' in cur_path:  # for a more finite search space
         n_thres = 1000
     else:
         n_thres = 100
@@ -171,7 +171,7 @@ def search_inter_degree_omn(settings, low=0, high=2, epsilon = 0.02, y_col='Y'):
     best_threshold = 0
 
     cur_sp = init_sp
-    if ('bank' in cur_path or 'cardio' in cur_path) and model_name == 'tr':  # for a more finite search space
+    if 'bank' in cur_path or 'cardio' in cur_path:  # for a more finite search space and model_name == 'tr'
         n_thres = 1000
     else:
         n_thres = 100
@@ -243,7 +243,7 @@ def retrain_model_with_weights_once(settings, input_degree, use_weight=True, y_c
     else:
         best_model = learner.fit(train_data, Y_train, features, seed)
 
-    if ('bank' in cur_path or 'cardio' in cur_path) and model_name == 'tr':  # for a more finite search space
+    if 'bank' in cur_path or 'cardio' in cur_path: #) and model_name == 'tr':  # for a more finite search space
         n_thres = 1000
     else:
         n_thres = 100
@@ -266,11 +266,17 @@ def retrain_model_with_weights_once(settings, input_degree, use_weight=True, y_c
         print('++ no model fitted', cur_path, seed, model_name, reweigh_method, weight_base, input_degree)
         return None
 
-def retrain_ML_with_weights(data_name, seed, model_name, reweigh_method, weight_base, input_degree=None, res_path='../intermediate/models/',
+def retrain_ML_with_weights(data_name, seed, model_name, reweigh_method, weight_base, input_degree=None,
+                            res_path='../intermediate/models/', cc_opt=True,
                             data_path='data/processed/', sensi_col='A'):
 
     repo_dir = res_path.replace('intermediate/models/', '')
     cur_dir = res_path + data_name + '/'
+
+    if cc_opt:
+        opt_suffix = ''
+    else:
+        opt_suffix = '-noOPT'
 
     if model_name == 'tr':
         if reweigh_method == 'cap':
@@ -281,13 +287,13 @@ def retrain_ML_with_weights(data_name, seed, model_name, reweigh_method, weight_
         validate_df = pd.read_csv('{}val-{}-bin.csv'.format(cur_dir, seed))
         test_df = pd.read_csv('{}test-{}-bin.csv'.format(cur_dir, seed))
 
-        vio_train_df = pd.read_csv('{}train-cc-{}.csv'.format(cur_dir, seed))
+        vio_train_df = pd.read_csv('{}train-cc-{}{}.csv'.format(cur_dir, seed, opt_suffix))
         train_df['vio_cc'] = vio_train_df['vio_cc']
         learner = XgBoost()
     else:
-        train_df = pd.read_csv('{}train-cc-{}.csv'.format(cur_dir, seed))
-        validate_df = pd.read_csv('{}val-cc-{}.csv'.format(cur_dir, seed))
-        test_df = pd.read_csv('{}test-cc-{}.csv'.format(cur_dir, seed))
+        train_df = pd.read_csv('{}train-cc-{}{}.csv'.format(cur_dir, seed, opt_suffix))
+        validate_df = pd.read_csv('{}val-cc-{}{}.csv'.format(cur_dir, seed, opt_suffix))
+        test_df = pd.read_csv('{}test-cc-{}{}.csv'.format(cur_dir, seed, opt_suffix))
         learner = LogisticRegression()
 
     meta_info = read_json('{}/{}{}.json'.format(repo_dir, data_path, data_name))
@@ -316,7 +322,7 @@ def retrain_ML_with_weights(data_name, seed, model_name, reweigh_method, weight_
 
     elif reweigh_method == 'scc':
         start = timeit.default_timer()
-        cc_par = read_json('{}par-cc-{}.json'.format(cur_dir, seed))
+        cc_par = read_json('{}par-cc-{}{}.json'.format(cur_dir, seed, opt_suffix))
         settings = (learner, train_df, features, validate_df, reweigh_method, weight_base, seed, model_name, data_name, cc_par)
         if input_degree: # user-specified intervention degree
             res = retrain_model_with_weights_once(settings, input_degree)
@@ -351,7 +357,7 @@ def retrain_ML_with_weights(data_name, seed, model_name, reweigh_method, weight_
         # print('++++ Best val', seed, model_name, best_degree, best_acc, best_sp, '++++')
 
         res_dict = {'time': time, 'BalAcc': best_acc, 'thres': best_threshold, 'degree': best_degree, 'SPDiff': best_sp}
-        save_json(res_dict, '{}par-{}-{}-{}-{}.json'.format(cur_dir, model_name, seed, reweigh_method, weight_base))
+        save_json(res_dict, '{}par-{}-{}-{}-{}{}.json'.format(cur_dir, model_name, seed, reweigh_method, weight_base, opt_suffix))
 
         test_data = test_df[features]
         test_predict = generate_model_predictions(best_model, test_data, best_threshold)
@@ -362,17 +368,17 @@ def retrain_ML_with_weights(data_name, seed, model_name, reweigh_method, weight_
         best_sp_test = eval_sp(test_df, 'Y_pred')
         eval_res = eval_settings(test_df, sensi_col, 'Y_pred')['all']
         print('++++ Best over test', model_name, best_degree, best_sp_test, eval_res['DI'], eval_res['BalAcc'],'++++')
-        dump(best_model, '{}{}-{}-{}-{}.joblib'.format(cur_dir, model_name, seed, reweigh_method, weight_base))
+        dump(best_model, '{}{}-{}-{}-{}{}.joblib'.format(cur_dir, model_name, seed, reweigh_method, weight_base, opt_suffix))
 
-        test_df[[sensi_col, 'Y', 'Y_pred']].to_csv('{}pred-{}-{}-{}-{}.csv'.format(cur_dir, model_name, seed, reweigh_method, weight_base), index=False)
+        test_df[[sensi_col, 'Y', 'Y_pred']].to_csv('{}pred-{}-{}-{}-{}{}.csv'.format(cur_dir, model_name, seed, reweigh_method, weight_base, opt_suffix), index=False)
     else:
         print('--- No model is found', data_name, seed, model_name, reweigh_method, weight_base)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Train weighted ML models")
+    parser = argparse.ArgumentParser(description="Train single weighted ML models")
     parser.add_argument("--run", type=str, default='parallel',
                         help="setting of 'parallel' for system evaluation or 'serial' execution for unit test.")
-    parser.add_argument("--data", type=str, default='syn',
+    parser.add_argument("--data", type=str, default='all',
                         help="name of datasets over which the script is running. Default is for all the datasets.")
     parser.add_argument("--set_n", type=int, default=None,
                         help="number of datasets over which the script is running. Default is 10.")
@@ -385,14 +391,18 @@ if __name__ == '__main__':
                         help="which base weights to combine in computing the final weights. For scc+kam and scc+omn, set the base as kam or omn.")
     parser.add_argument("--degree", type=float, default=None,
                         help="additional weights in OmniFair and SCC. Default is None for all the datasets and will be searched for optimal value automatically.")
-    parser.add_argument("--exec_n", type=int, default=15,
+    parser.add_argument("--exec_n", type=int, default=10,
                         help="number of executions with different random seeds. Default is 20.")
+
+    parser.add_argument("--opt", type=int, default=0,
+                        help="whether to apply the optimization for CC tool.")
+
     args = parser.parse_args()
 
     datasets = ['meps16', 'lsac', 'bank', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI'] #'cardio',
-    # seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100,
-    #          923]
-    seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100,
+             923]
+    # seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
 
     models = ['lr', 'tr']
 
@@ -447,7 +457,7 @@ if __name__ == '__main__':
         for data_name in datasets:
             for seed in seeds:
                 for model_i in models:
-                    tasks.append([data_name, seed, model_i, args.weight, args.base, args.degree, res_path])
+                    tasks.append([data_name, seed, model_i, args.weight, args.base, args.degree, res_path, args.opt])
         with Pool(cpu_count()//2) as pool:
             pool.starmap(retrain_ML_with_weights, tasks)
     else:

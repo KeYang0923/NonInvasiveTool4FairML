@@ -19,7 +19,7 @@ def combine_violation(x):
 
 
 def learn_cc_models(data_name, seed, dense_kernal='guassian',
-                    res_path='../intermediate/models/',
+                    res_path='../intermediate/models/', cc_opt=True,
                     data_path='data/processed/',
                     n_groups=2, n_labels=2, sensi_col='A', y_col='Y',
                     dense_n=0.2, dense_h=0.1, algorithm='auto'):
@@ -47,16 +47,20 @@ def learn_cc_models(data_name, seed, dense_kernal='guassian',
     for group_i in range(n_groups):
         for label_i in range(n_labels):
             group_input = cc_df[(cc_df[sensi_col] == group_i) & (cc_df[y_col] == label_i)]
+            if cc_opt:
+                group_X = group_input[cc_cols].to_numpy()
+                kde = KernelDensity(bandwidth=dense_h, kernel=dense_kernal, algorithm=algorithm)
+                kde.fit(group_X)
 
-            group_X = group_input[cc_cols].to_numpy()
-            kde = KernelDensity(bandwidth=dense_h, kernel=dense_kernal, algorithm=algorithm)
-            kde.fit(group_X)
+                group_input['density'] = kde.score_samples(group_X)
+                group_input.sort_values(by=['density'], ascending=False, inplace=True)
+                cc_input = group_input.head(int(dense_n * group_input.shape[0]))
 
-            group_input['density'] = kde.score_samples(group_X)
-            group_input.sort_values(by=['density'], ascending=False, inplace=True)
-            cc_input = group_input.head(int(dense_n * group_input.shape[0]))
-
-            group_cc_rules = di.learn_assertions(cc_input[cc_cols], max_self_violation=1.0)
+                group_cc_rules = di.learn_assertions(cc_input[cc_cols], max_self_violation=1.0)
+                opt_suffix = ''
+            else:
+                group_cc_rules = di.learn_assertions(group_input[cc_cols], max_self_violation=1.0)
+                opt_suffix = '-noOPT'
             train_cc_res = group_cc_rules.evaluate(cc_df[cc_cols], explanation=True, normalizeViolation=True)
             train_df['vio_G{}_L{}'.format(group_i, label_i)] = train_cc_res.row_wise_violation_summary['violation']
 
@@ -66,18 +70,20 @@ def learn_cc_models(data_name, seed, dense_kernal='guassian',
             test_cc_res = group_cc_rules.evaluate(cc_test_df[cc_cols], explanation=True, normalizeViolation=True)
             test_df['vio_G{}_L{}'.format(group_i, label_i)] = test_cc_res.row_wise_violation_summary['violation']
             cur_vio_mean_train = train_df['vio_G{}_L{}'.format(group_i, label_i)].mean()
+            cur_vio_mean_test = test_df['vio_G{}_L{}'.format(group_i, label_i)].mean()
 
             par_dict.update({'mean_train_G{}_L{}'.format(group_i, label_i): cur_vio_mean_train})
+            par_dict.update({'mean_test_G{}_L{}'.format(group_i, label_i): cur_vio_mean_test})
     end = timeit.default_timer()
     time = end - start
     par_dict.update({'time': time})
-    save_json(par_dict, '{}par-cc-{}.json'.format(cur_dir, seed))
+    save_json(par_dict, '{}par-cc-{}{}.json'.format(cur_dir, seed, opt_suffix))
 
     train_df['vio_cc'] = train_df[[sensi_col, y_col, 'vio_G0_L0', 'vio_G0_L1', 'vio_G1_L0', 'vio_G1_L1']].apply(lambda x: combine_violation(x), axis=1)
 
-    train_df.to_csv('{}train-cc-{}.csv'.format(cur_dir, seed), index=False)
-    val_df.to_csv('{}val-cc-{}.csv'.format(cur_dir, seed), index=False)
-    test_df.to_csv('{}test-cc-{}.csv'.format(cur_dir, seed), index=False)
+    train_df.to_csv('{}train-cc-{}{}.csv'.format(cur_dir, seed, opt_suffix), index=False)
+    val_df.to_csv('{}val-cc-{}{}.csv'.format(cur_dir, seed, opt_suffix), index=False)
+    test_df.to_csv('{}test-cc-{}{}.csv'.format(cur_dir, seed, opt_suffix), index=False)
 
 
 if __name__ == '__main__':
@@ -86,18 +92,21 @@ if __name__ == '__main__':
     parser.add_argument("--run", type=str, default='parallel',
                         help="setting of 'parallel' for system evaluation or 'serial' execution for unit test.")
     # parameters for running over smaller number of datasets and few number of executions
-    parser.add_argument("--data", type=str, default='syn',
+    parser.add_argument("--data", type=str, default='all',
                         help="name of datasets over which the script is running. Default is for all the datasets.")
     parser.add_argument("--set_n", type=int, default=None,
                         help="number of datasets over which the script is running. Default is 10.")
-    parser.add_argument("--exec_n", type=int, default=15,
+    parser.add_argument("--exec_n", type=int, default=10,
                         help="number of executions with different random seeds. Default is 20.")
+    parser.add_argument("--opt", type=int, default=0,
+                        help="whether to apply the optimization for CC tool.")
+
     args = parser.parse_args()
 
 
-    datasets = ['meps16', 'lsac', 'bank', 'cardio', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI']
-    # seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
-    seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+    datasets = ['meps16', 'lsac', 'bank', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI'] #'cardio',
+    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+    # seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
 
     if args.exec_n is None:
         raise ValueError(
@@ -150,7 +159,7 @@ if __name__ == '__main__':
                 raise ValueError('The input "data" is not valid. CHOOSE FROM ["syn", "lsac", "cardio", "bank", "meps16", "credit", "ACSE", "ACSP", "ACSH", "ACSM", "ACSI"].')
 
             for seed in seeds:
-                tasks.append([data_name, seed, kernel_name, res_path])
+                tasks.append([data_name, seed, kernel_name, res_path, args.opt])
         with Pool(cpu_count()//2) as pool:
             pool.starmap(learn_cc_models, tasks)
     else:
