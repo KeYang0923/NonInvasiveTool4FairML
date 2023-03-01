@@ -283,10 +283,10 @@ if __name__ == '__main__':
 
     parser.add_argument("--setting", type=str, default='all',
                         help="which method to evaluate. CHOOSE FROM '[multi, single]'.")
-    parser.add_argument("--exec_n", type=int, default=10,
+    parser.add_argument("--exec_n", type=int, default=15,
                         help="number of executions with different random seeds. Default is 20.")
 
-    parser.add_argument("--opt", type=int, default=0,
+    parser.add_argument("--opt", type=int, default=1,
                         help="whether to apply the optimization for CC tool.")
 
     parser.add_argument("--aware", type=int, default=0,
@@ -295,8 +295,8 @@ if __name__ == '__main__':
 
     datasets = ['meps16', 'lsac', 'bank', 'ACSM', 'ACSP', 'credit', 'ACSE', 'ACSH', 'ACSI'] #'cardio',
 
-    seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
-    # seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+    # seeds = [1, 12345, 6, 2211, 15, 88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
+    seeds = [88, 121, 433, 500, 1121, 50, 583, 5278, 100000, 0xbeef, 0xcafe, 0xdead, 7777, 100, 923]
 
     models = ['lr', 'tr']
     settings = ['multi', 'single']
