@@ -37,15 +37,15 @@ def return_identify_zero_violation(dense_df, test_df, sensi_col, y_col, group_na
                                 save_print_f=None):
     vio_df = dense_df.copy()
     test_vio = test_df.copy()
-    # if verbose:
-    #     if save_print_f is not None:
-    #         f = open(save_print_f + '.txt', 'w')
-    #     else:
-    #         f = None
-    # core_conform_index = {}
-    # opp_conform_index = {}
-    #
-    # cc_models = {}
+    if verbose:
+        if save_print_f is not None:
+            f = open(save_print_f + '.txt', 'w')
+        else:
+            f = None
+    core_conform_index = {}
+    opp_conform_index = {}
+
+    cc_models = {}
     for group_i, group_name in zip(range(n_groups), group_names):
         for label_i, label_name in zip(range(n_labels), label_names):
             dense_col_name = '_'.join(['density', 'G' + str(group_i), 'L' + str(label_i)])
@@ -65,48 +65,48 @@ def return_identify_zero_violation(dense_df, test_df, sensi_col, y_col, group_na
             test_vio['vio_by_' + dense_col_name] = test_result_i.row_wise_violation_summary['violation']
 
 
-            # result_i = assertions_i.evaluate(di_train[cc_cols], explanation=True, normalizeViolation=True)
-            # di_train['vio_by_' + dense_col_name] = result_i.row_wise_violation_summary['violation']
-            #
-            # cur_core = di_train[di_train['vio_by_' + dense_col_name] == 0].copy()
-            # core_conform_index[str(group_i) + '_' + str(label_i)] = list(cur_core.index)
-            #
-            # cc_models[dense_col_name] = assertions_i
-            #
-            # format_print('For %s = %s & %s = %s'% (sensi_col, group_name, y_col, label_name), output_f=f)
-            # result_train = assertions_i.evaluate(di_train_dense[cc_cols], explanation=True, normalizeViolation=True)
-            # format_print(assertions_i, output_f=f)
-            # format_print('\n', output_f=f)
-            #
-            # format_print('Violation on training %4.3f'%result_train.avg_violation, output_f=f)
-            # format_print('Zero-violated (Core) samples in training %d out of %d \n' % (cur_core.shape[0], di_train.shape[0]), output_f=f)
-            # format_print('\n', output_f=f)
-            #
-            # label_test_df = vio_df[(vio_df[sensi_col] == group_i) & (vio_df[y_col] != label_i)].copy()
-            # result_label = assertions_i.evaluate(label_test_df[cc_cols], explanation=True, normalizeViolation=True)
-            # format_print('Violation on opposite label %4.3f'%result_label.avg_violation, output_f=f)
-            # label_test_df['vio_by_' + dense_col_name] = result_label.row_wise_violation_summary['violation']
-            # format_print('Zero-violated samples in opposite label %d out of %d' % (label_test_df[label_test_df['vio_by_' + dense_col_name] == 0].shape[0], label_test_df.shape[0]), output_f=f)
-            # format_print('\n', output_f=f)
-            # opp_conform_train = label_test_df[label_test_df['vio_by_' + dense_col_name] == 0].copy()
-            # opp_conform_index[str(group_i) + '_' + str(label_i)] = list(opp_conform_train.index)
-            #
-            # group_test_df = vio_df[(vio_df[sensi_col] != group_i) & (vio_df[y_col] == label_i)].copy()
-            # result_group = assertions_i.evaluate(group_test_df[cc_cols], explanation=True, normalizeViolation=True)
-            # group_test_df['vio_by_' + dense_col_name] = result_group.row_wise_violation_summary['violation']
-            #
-            # format_print('Violation on other group %4.3f'%result_group.avg_violation, output_f=f)
-            # zero_vio_group_test = group_test_df[group_test_df['vio_by_' + dense_col_name] == 0]
-            # format_print('Zero-violated samples in other group %d out of %d' % (zero_vio_group_test.shape[0], group_test_df.shape[0]), output_f=f)
-            # format_print('\n', output_f=f)
-            #
-            # both_test = vio_df[(vio_df[sensi_col] != group_i) & (vio_df[y_col] != label_i)].copy()
-            # result_both = assertions_i.evaluate(both_test[cc_cols], explanation=True, normalizeViolation=True)
-            # both_test['vio_by_' + dense_col_name] = result_both.row_wise_violation_summary['violation']
-            #
-            # format_print('Violation on other group opposite label %4.3f'%result_both.avg_violation, output_f=f)
-            # format_print('Zero-violated samples in other group opposite label %d out of %d' % (both_test[both_test['vio_by_' + dense_col_name] == 0].shape[0], both_test.shape[0]), output_f=f)
-            # format_print('\n', output_f=f)
+            result_i = assertions_i.evaluate(di_train[cc_cols], explanation=True, normalizeViolation=True)
+            di_train['vio_by_' + dense_col_name] = result_i.row_wise_violation_summary['violation']
+
+            cur_core = di_train[di_train['vio_by_' + dense_col_name] == 0].copy()
+            core_conform_index[str(group_i) + '_' + str(label_i)] = list(cur_core.index)
+
+            cc_models[dense_col_name] = assertions_i
+
+            format_print('For %s = %s & %s = %s'% (sensi_col, group_name, y_col, label_name), output_f=f)
+            result_train = assertions_i.evaluate(di_train_dense[cc_cols], explanation=True, normalizeViolation=True)
+            format_print(assertions_i, output_f=f)
+            format_print('\n', output_f=f)
+
+            format_print('Violation on training %4.3f'%result_train.avg_violation, output_f=f)
+            format_print('Zero-violated (Core) samples in training %d out of %d \n' % (cur_core.shape[0], di_train.shape[0]), output_f=f)
+            format_print('\n', output_f=f)
+
+            label_test_df = vio_df[(vio_df[sensi_col] == group_i) & (vio_df[y_col] != label_i)].copy()
+            result_label = assertions_i.evaluate(label_test_df[cc_cols], explanation=True, normalizeViolation=True)
+            format_print('Violation on opposite label %4.3f'%result_label.avg_violation, output_f=f)
+            label_test_df['vio_by_' + dense_col_name] = result_label.row_wise_violation_summary['violation']
+            format_print('Zero-violated samples in opposite label %d out of %d' % (label_test_df[label_test_df['vio_by_' + dense_col_name] == 0].shape[0], label_test_df.shape[0]), output_f=f)
+            format_print('\n', output_f=f)
+            opp_conform_train = label_test_df[label_test_df['vio_by_' + dense_col_name] == 0].copy()
+            opp_conform_index[str(group_i) + '_' + str(label_i)] = list(opp_conform_train.index)
+
+            group_test_df = vio_df[(vio_df[sensi_col] != group_i) & (vio_df[y_col] == label_i)].copy()
+            result_group = assertions_i.evaluate(group_test_df[cc_cols], explanation=True, normalizeViolation=True)
+            group_test_df['vio_by_' + dense_col_name] = result_group.row_wise_violation_summary['violation']
+
+            format_print('Violation on other group %4.3f'%result_group.avg_violation, output_f=f)
+            zero_vio_group_test = group_test_df[group_test_df['vio_by_' + dense_col_name] == 0]
+            format_print('Zero-violated samples in other group %d out of %d' % (zero_vio_group_test.shape[0], group_test_df.shape[0]), output_f=f)
+            format_print('\n', output_f=f)
+
+            both_test = vio_df[(vio_df[sensi_col] != group_i) & (vio_df[y_col] != label_i)].copy()
+            result_both = assertions_i.evaluate(both_test[cc_cols], explanation=True, normalizeViolation=True)
+            both_test['vio_by_' + dense_col_name] = result_both.row_wise_violation_summary['violation']
+
+            format_print('Violation on other group opposite label %4.3f'%result_both.avg_violation, output_f=f)
+            format_print('Zero-violated samples in other group opposite label %d out of %d' % (both_test[both_test['vio_by_' + dense_col_name] == 0].shape[0], both_test.shape[0]), output_f=f)
+            format_print('\n', output_f=f)
 
     # if save_print_f is not None:
     #     f.close()

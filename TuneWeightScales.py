@@ -47,7 +47,7 @@ def compute_weights(df, method, sample_base='zero', alpha_g0=2.0, alpha_g1=1.0, 
     target_1 = np.array(df[y_col] == 1).astype(int)
     target_0 = np.array(df[y_col] == 0).astype(int)
     if method == 'scc':
-        if cc_par is not None: # if mean(violation) > 0.1, use the corresponding zero violations
+        if cc_par is not None: # if mean(violation) > 0.1, use the corresponding zero violations in deciding weights
             group_1_y_1_mean = int(cc_par['mean_train_G1_L1'] >= cc_vio_thres)
             group_1_y_0_mean = int(cc_par['mean_train_G1_L0'] >= cc_vio_thres)
             group_0_y_1_mean = int(cc_par['mean_train_G0_L1'] >= cc_vio_thres)

@@ -62,6 +62,11 @@ def extract_evaluations(data_name, seeds, models,
                             res_df.loc[res_df.shape[0]] = [data_name, model_name.upper(), seed, mcc_i, 'all'] + [metric_i, eval_res[mcc_i]['all'][metric_i]]
                 else:
                     print('--> no eval for', eval_mcc_name)
+                    # adding rows with -1 for visualization
+                    for mcc_i in ['MCC-MIN', 'MCC-W1', 'MCC-W2']:
+                        for metric_i in overall_metrics:
+                            res_df.loc[res_df.shape[0]] = [data_name, model_name.upper(), seed, mcc_i, 'all'] + [metric_i, -1]
+
 
             # get single results
             for weight_i, base_i in zip(scc_weights, scc_bases):
@@ -76,7 +81,7 @@ def extract_evaluations(data_name, seeds, models,
                     for metric_i in overall_metrics:
                         res_df.loc[res_df.shape[0]] = [data_name, model_name.upper(), seed, method_name, 'all'] + [metric_i, eval_res[weight_i.upper()]['all'][metric_i]]
                 else:
-                    print('--> Adding zerp rows Because no eval for', eval_single_name)
+                    print('--> Adding zero rows Because no eval for', eval_single_name)
                     for metric_i in overall_metrics:
                         res_df.loc[res_df.shape[0]] = [data_name, model_name.upper(), seed, method_name, 'all'] + [metric_i, 0]
 

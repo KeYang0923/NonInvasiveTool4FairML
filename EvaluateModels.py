@@ -98,7 +98,11 @@ def assign_pred_mcc_weight(x, vio_means, n_vio=4): # assign prediction based on 
             weights.append(1-x.iloc[i])
         else:
             weights.append(0)
+
     weights_norm = sum(weights)
+    if weights_norm == 0:
+        weights_norm = 0.0001
+
     return weights[0]/weights_norm * (1- x.iloc[n_vio]) + weights[1]/weights_norm * x.iloc[n_vio] + weights[2]/weights_norm * (1- x.iloc[n_vio+1]) + weights[3]/weights_norm * x.iloc[n_vio+1]
 
 def assign_pred_mcc_weight_group(x, vio_means, n_vio=4): # assign prediction based on minimal violation
@@ -126,6 +130,8 @@ def assign_pred_mcc_weight_group(x, vio_means, n_vio=4): # assign prediction bas
     # weight_g1 = 1- min(x.iloc[2], x.iloc[3])
     # weight_g0 = 1- min(x.iloc[0], x.iloc[1])
     weights_norm = weight_g1 + weight_g0
+    if weights_norm == 0:
+        weights_norm = 0.0001
     return weight_g0/weights_norm * prob_g0 + weight_g1/weights_norm * prob_g1
 
 def assign_pred_sensi(x, thres_groups): # assign prediction based on the group membership of sensitive attribute
@@ -147,7 +153,7 @@ def eval_predicitons(data_name, seed, model_name, setting,
     if setting == 'multi':
         cc_par = read_json('{}par-cc-{}{}.json'.format(cur_dir, seed, opt_suffix))
         vio_cols = ['vio_G{}_L{}'.format(group_i, label_i) for group_i in range(2) for label_i in range(2)]
-        vio_means = [cc_par['mean_train_G{}_L{}{}'.format(group_i, label_i, opt_suffix)] for group_i in range(2) for label_i in range(2)]
+        vio_means = [cc_par['mean_train_G{}_L{}'.format(group_i, label_i)] for group_i in range(2) for label_i in range(2)]
 
         if model_name == 'tr':
             test_df = pd.read_csv('{}test-{}-bin.csv'.format(cur_dir, seed))
@@ -191,41 +197,43 @@ def eval_predicitons(data_name, seed, model_name, setting,
         test_df['Y_pred_A'] = test_df[[sensi_col, 'Y_pred_G0', 'Y_pred_G1']].apply(lambda x: assign_pred_sensi(x, [model_par['thres_g0'], model_par['thres_g1']]), axis=1)
         test_df['Y_pred'] = test_df['Y_pred'].apply(lambda x: int(x > model_par['thres']))
 
+        if sum(vio_means) < 0.1: # no reasonable means are produced for all the four subsets
+            pass
+        else:
+            # find the optimal threshold over validate data for mcc weighted version
+            val_df['Y_pred_min'] = val_df[vio_cols + ['Y_pred_G0', 'Y_pred_G1']].apply(lambda x: assign_pred_mcc_min(x, vio_means), axis=1)
+            val_df['Y_pred_w1'] = val_df[vio_cols + ['Y_pred_G0', 'Y_pred_G1']].apply(lambda x: assign_pred_mcc_weight(x, vio_means), axis=1)
+            val_df['Y_pred_w2'] = val_df[vio_cols + ['Y_pred_G0', 'Y_pred_G1']].apply(lambda x: assign_pred_mcc_weight_group(x, vio_means), axis=1)
 
-        # find the optimal threshold over validate data for mcc weighted version
-        val_df['Y_pred_min'] = val_df[vio_cols + ['Y_pred_G0', 'Y_pred_G1']].apply(lambda x: assign_pred_mcc_min(x, vio_means), axis=1)
-        val_df['Y_pred_w1'] = val_df[vio_cols + ['Y_pred_G0', 'Y_pred_G1']].apply(lambda x: assign_pred_mcc_weight(x, vio_means), axis=1)
-        val_df['Y_pred_w2'] = val_df[vio_cols + ['Y_pred_G0', 'Y_pred_G1']].apply(lambda x: assign_pred_mcc_weight_group(x, vio_means), axis=1)
+            min_opt_thres = find_optimal_thres(val_df, opt_obj='BalAcc', pred_col='Y_pred_min')
+            w1_opt_thres = find_optimal_thres(val_df, opt_obj='BalAcc', pred_col='Y_pred_w1')
+            w2_opt_thres = find_optimal_thres(val_df, opt_obj='BalAcc', pred_col='Y_pred_w2')
 
-        min_opt_thres = find_optimal_thres(val_df, opt_obj='BalAcc', pred_col='Y_pred_min')
-        w1_opt_thres = find_optimal_thres(val_df, opt_obj='BalAcc', pred_col='Y_pred_w1')
-        w2_opt_thres = find_optimal_thres(val_df, opt_obj='BalAcc', pred_col='Y_pred_w2')
+            test_df['Y_pred_min'] = test_df[vio_cols + ['Y_pred_G0', 'Y_pred_G1']].apply(lambda x: assign_pred_mcc_min(x, vio_means), axis=1)
+            test_df['Y_pred_w1'] = test_df[vio_cols + ['Y_pred_G0', 'Y_pred_G1']].apply(lambda x: assign_pred_mcc_weight(x, vio_means), axis=1)
+            test_df['Y_pred_w2'] = test_df[vio_cols + ['Y_pred_G0', 'Y_pred_G1']].apply(lambda x: assign_pred_mcc_weight_group(x, vio_means), axis=1)
 
-        test_df['Y_pred_min'] = test_df[vio_cols + ['Y_pred_G0', 'Y_pred_G1']].apply(lambda x: assign_pred_mcc_min(x, vio_means), axis=1)
-        test_df['Y_pred_w1'] = test_df[vio_cols + ['Y_pred_G0', 'Y_pred_G1']].apply(lambda x: assign_pred_mcc_weight(x, vio_means), axis=1)
-        test_df['Y_pred_w2'] = test_df[vio_cols + ['Y_pred_G0', 'Y_pred_G1']].apply(lambda x: assign_pred_mcc_weight_group(x, vio_means), axis=1)
+            test_df['Y_pred_min'] = test_df['Y_pred_min'].apply(lambda x: int(x > min_opt_thres['thres']))
+            test_df['Y_pred_w1'] = test_df['Y_pred_w1'].apply(lambda x: int(x > w1_opt_thres['thres']))
+            test_df['Y_pred_w2'] = test_df['Y_pred_w2'].apply(lambda x: int(x > w2_opt_thres['thres']))
 
-        test_df['Y_pred_min'] = test_df['Y_pred_min'].apply(lambda x: int(x > min_opt_thres['thres']))
-        test_df['Y_pred_w1'] = test_df['Y_pred_w1'].apply(lambda x: int(x > w1_opt_thres['thres']))
-        test_df['Y_pred_w2'] = test_df['Y_pred_w2'].apply(lambda x: int(x > w2_opt_thres['thres']))
+            test_df.to_csv('{}test-{}-{}-{}{}.csv'.format(cur_dir, model_name, seed, setting, opt_suffix), index=False)
 
-        test_df.to_csv('{}test-{}-{}-{}{}.csv'.format(cur_dir, model_name, seed, setting, opt_suffix), index=False)
+            eval_res = {}
+            for pred_y, cur_setting in zip(['Y_pred_min', 'Y_pred_w1', 'Y_pred_w2', 'Y_pred_A', 'Y_pred'], ['MCC-MIN', 'MCC-W1', 'MCC-W2', 'SEP', 'ORIG']):
+                eval_res[cur_setting] = eval_settings(test_df, sensi_col, pred_y)
 
-        eval_res = {}
-        for pred_y, cur_setting in zip(['Y_pred_min', 'Y_pred_w1', 'Y_pred_w2', 'Y_pred_A', 'Y_pred'], ['MCC-MIN', 'MCC-W1', 'MCC-W2', 'SEP', 'ORIG']):
-            eval_res[cur_setting] = eval_settings(test_df, sensi_col, pred_y)
+            save_json(eval_res, '{}eval-{}-{}-{}{}.json'.format(cur_dir, model_name, seed, setting, opt_suffix))
 
-        save_json(eval_res, '{}eval-{}-{}-{}{}.json'.format(cur_dir, model_name, seed, setting, opt_suffix))
+            par_dict = {'orig': {'thres': model_par['thres'], 'BalAcc': model_par['BalAcc']},
+                        'min': {'thres': min_opt_thres['thres'], 'BalAcc': min_opt_thres['BalAcc']},
+                        'w1': {'thres': w1_opt_thres['thres'], 'BalAcc': w1_opt_thres['BalAcc']},
+                        'w2': {'thres': w2_opt_thres['thres'], 'BalAcc': w2_opt_thres['BalAcc']},
+                        'sep': {'thres': (model_par['thres_g0'], model_par['thres_g1']),
+                                'BalAcc': (model_par['BalAcc_g0'], model_par['BalAcc_g1'])},
+                        }
 
-        par_dict = {'orig': {'thres': model_par['thres'], 'BalAcc': model_par['BalAcc']},
-                    'min': {'thres': min_opt_thres['thres'], 'BalAcc': min_opt_thres['BalAcc']},
-                    'w1': {'thres': w1_opt_thres['thres'], 'BalAcc': w1_opt_thres['BalAcc']},
-                    'w2': {'thres': w2_opt_thres['thres'], 'BalAcc': w2_opt_thres['BalAcc']},
-                    'sep': {'thres': (model_par['thres_g0'], model_par['thres_g1']),
-                            'BalAcc': (model_par['BalAcc_g0'], model_par['BalAcc_g1'])},
-                    }
-
-        save_json(par_dict, '{}par-{}-{}-{}{}.json'.format(cur_dir, model_name, seed, setting, opt_suffix))
+            save_json(par_dict, '{}par-{}-{}-{}{}.json'.format(cur_dir, model_name, seed, setting, opt_suffix))
 
     elif setting == 'single':
         if 'syn' in data_name:
